@@ -13,7 +13,8 @@ import (
 )
 
 // RegisterGRPCService 注册grpc服务
-func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint string, authMiddleWare *auth.Auth, grpcServer *grpc.Server, gwmux *runtime.ServeMux, dialOpts ...grpc.DialOption) (err error) {
+func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint string, authMiddleWare *auth.Auth,
+	grpcServer *grpc.Server, gwmux *runtime.ServeMux, dialOpts ...grpc.DialOption) (err error) {
 	// 用户API接口服务
 	userAPIService := biz.NewUserAPIService(dbModel, logger, authMiddleWare)
 	v1.RegisterUserAPIServer(grpcServer, userAPIService)

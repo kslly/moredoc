@@ -256,19 +256,22 @@ func (m *DBModel) cronCleanInvalidAttachment() {
 		}
 		m.logger.Debug("cronCleanInvalidAttachment", zap.Any("ids", ids), zap.Any("Attachemnts", deletedAttachemnts))
 		for _, attachemnt := range deletedAttachemnts {
-			if _, ok := hashMap[attachemnt.Hash]; !ok { // 删除附件文件
-				m.logger.Debug("cronCleanInvalidAttachment", zap.String("path", attachemnt.Path), zap.Any("attachemnt", attachemnt))
-				file := strings.TrimLeft(attachemnt.Path, "./")
-				m.logger.Debug("cronCleanInvalidAttachment", zap.String("file", file))
-				if err := os.Remove(file); err != nil {
-					m.logger.Error("cronCleanInvalidAttachment", zap.Error(err), zap.String("file", file))
-				}
-				if attachemnt.Type == AttachmentTypeDocument { // 删除文档的衍生文件
-					folder := strings.TrimSuffix(file, filepath.Ext(file))
-					m.logger.Debug("cronCleanInvalidAttachment", zap.String("folder", folder))
-					if err := os.RemoveAll(folder); err != nil {
-						m.logger.Error("cronCleanInvalidAttachment", zap.Error(err), zap.String("folder", folder))
-					}
+			_, ok := hashMap[attachemnt.Hash]
+			if ok {
+				continue
+			}
+			// 删除附件文件
+			m.logger.Debug("cronCleanInvalidAttachment", zap.String("path", attachemnt.Path), zap.Any("attachemnt", attachemnt))
+			file := strings.TrimLeft(attachemnt.Path, "./")
+			m.logger.Debug("cronCleanInvalidAttachment", zap.String("file", file))
+			if err := os.Remove(file); err != nil {
+				m.logger.Error("cronCleanInvalidAttachment", zap.Error(err), zap.String("file", file))
+			}
+			if attachemnt.Type == AttachmentTypeDocument { // 删除文档的衍生文件
+				folder := strings.TrimSuffix(file, filepath.Ext(file))
+				m.logger.Debug("cronCleanInvalidAttachment", zap.String("folder", folder))
+				if err := os.RemoveAll(folder); err != nil {
+					m.logger.Error("cronCleanInvalidAttachment", zap.Error(err), zap.String("folder", folder))
 				}
 			}
 		}
@@ -288,26 +291,21 @@ func (m *DBModel) cronMarkAttachmentDeleted() {
 
 		// 1. 查找图片类配置
 		m.db.Select("value").Where("input_type = ?", "image").Find(&configs)
-		if len(configs) > 0 {
-			for _, config := range configs {
-				// 文件hash
-				hash := strings.TrimSpace(strings.TrimSuffix(filepath.Base(config.Value), filepath.Ext(config.Value)))
-				if hash != "" {
-					hashes = append(hashes, hash)
-				}
+		for _, config := range configs {
+			// 文件hash
+			hash := strings.TrimSpace(strings.TrimSuffix(filepath.Base(config.Value), filepath.Ext(config.Value)))
+			if hash != "" {
+				hashes = append(hashes, hash)
 			}
-
 		}
 
 		// 2. 查找轮播图类配置
 		m.db.Select("path").Find(&banners)
-		if len(banners) > 0 {
-			for _, banner := range banners {
-				// 文件hash
-				hash := strings.TrimSpace(strings.TrimSuffix(filepath.Base(banner.Path), filepath.Ext(banner.Path)))
-				if hash != "" {
-					hashes = append(hashes, hash)
-				}
+		for _, banner := range banners {
+			// 文件hash
+			hash := strings.TrimSpace(strings.TrimSuffix(filepath.Base(banner.Path), filepath.Ext(banner.Path)))
+			if hash != "" {
+				hashes = append(hashes, hash)
 			}
 		}
 
@@ -586,45 +584,47 @@ func (m *DBModel) SSRMidleware(c *gin.Context) {
 			continue
 		}
 
-		if strings.Contains(reqUA, userAgent) {
-			if cache, err := m._readSSRCacheFile(c.Request.RequestURI); err == nil {
-				m.logger.Debug("SSRMidleware", zap.Int("read from cache", len(cache)))
-				c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-				c.Writer.WriteHeader(http.StatusOK)
-				c.Writer.Write(cache)
-				c.Abort()
-				return
-			}
+		if !strings.Contains(reqUA, userAgent) {
+			continue
+		}
 
-			client := resty.New()
-			client.SetTimeout(10 * time.Second)
-			req := client.R()
-			req.SetHeader("User-Agent", reqUA)
-			resp, err := req.Get(addr)
-			if err != nil {
-				m.logger.Error("SSRMidleware", zap.Error(err))
-				c.Next()
-				return
-			}
-			defer resp.RawResponse.Body.Close()
-			body := resp.Body()
-			if resp.StatusCode() == http.StatusOK {
-				m.saveSSRCache(c.Request.RequestURI, body)
-				// 响应 resp 的内容
-				for key, values := range resp.Header() {
-					for _, value := range values {
-						c.Writer.Header().Set(key, value)
-					}
-				}
-				c.Writer.WriteHeader(resp.StatusCode())
-				c.Writer.Write(body)
-				c.Abort()
-			} else {
-				m.logger.Error("SSRMidleware", zap.String("msg", "ssr请求失败"), zap.Int("status", resp.StatusCode()))
-				c.Next()
-			}
+		if cache, err := m._readSSRCacheFile(c.Request.RequestURI); err == nil {
+			m.logger.Debug("SSRMidleware", zap.Int("read from cache", len(cache)))
+			c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+			c.Writer.WriteHeader(http.StatusOK)
+			c.Writer.Write(cache)
+			c.Abort()
 			return
 		}
+
+		client := resty.New()
+		client.SetTimeout(10 * time.Second)
+		req := client.R()
+		req.SetHeader("User-Agent", reqUA)
+		resp, err := req.Get(addr)
+		if err != nil {
+			m.logger.Error("SSRMidleware", zap.Error(err))
+			c.Next()
+			return
+		}
+		defer resp.RawResponse.Body.Close()
+		body := resp.Body()
+		if resp.StatusCode() == http.StatusOK {
+			m.saveSSRCache(c.Request.RequestURI, body)
+			// 响应 resp 的内容
+			for key, values := range resp.Header() {
+				for _, value := range values {
+					c.Writer.Header().Set(key, value)
+				}
+			}
+			c.Writer.WriteHeader(resp.StatusCode())
+			c.Writer.Write(body)
+			c.Abort()
+		} else {
+			m.logger.Error("SSRMidleware", zap.String("msg", "ssr请求失败"), zap.Int("status", resp.StatusCode()))
+			c.Next()
+		}
+		return
 	}
 	c.Next()
 }
@@ -705,46 +705,52 @@ func (m *DBModel) checkAndStartSSR() {
 		for {
 			cfg := m.GetConfigOfSSRByCache()
 			filepath.WalkDir(cacheSSR, func(path string, d os.DirEntry, err error) error {
-				if err == nil {
-					if d.IsDir() {
-						return nil
+				if err != nil {
+					return err
+				}
+
+				if d.IsDir() {
+					return nil
+				}
+				m.logger.Debug("clear ssr cache file", zap.String("path", path))
+				info, err := d.Info()
+				if err != nil {
+					return err
+				}
+
+				prefix := strings.Split(strings.TrimLeft(strings.TrimPrefix(path, cacheSSR), "/"), "/")[0]
+				switch prefix {
+				case "index":
+					if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheHome) * time.Hour * 24)) {
+						os.Remove(path)
 					}
-					m.logger.Debug("clear ssr cache file", zap.String("path", path))
-					if info, e := d.Info(); e == nil {
-						prefix := strings.Split(strings.TrimLeft(strings.TrimPrefix(path, cacheSSR), "/"), "/")[0]
-						switch prefix {
-						case "index":
-							if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheHome) * time.Hour * 24)) {
-								os.Remove(path)
-							}
-						case "document":
-							if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheDocument) * time.Hour * 24)) {
-								os.Remove(path)
-							}
-						case "category":
-							if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheCategory) * time.Hour * 24)) {
-								os.Remove(path)
-							}
-						case "user":
-							if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheUser) * time.Hour * 24)) {
-								os.Remove(path)
-							}
-						case "article":
-							if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheArticle) * time.Hour * 24)) {
-								os.Remove(path)
-							}
-						case "search":
-							if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheSearch) * time.Hour * 24)) {
-								os.Remove(path)
-							}
-						default:
-							if info.ModTime().Before(time.Now().Add(-24 * time.Hour)) {
-								os.Remove(path)
-							}
-						}
+				case "document":
+					if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheDocument) * time.Hour * 24)) {
+						os.Remove(path)
+					}
+				case "category":
+					if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheCategory) * time.Hour * 24)) {
+						os.Remove(path)
+					}
+				case "user":
+					if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheUser) * time.Hour * 24)) {
+						os.Remove(path)
+					}
+				case "article":
+					if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheArticle) * time.Hour * 24)) {
+						os.Remove(path)
+					}
+				case "search":
+					if info.ModTime().Before(time.Now().Add(-time.Duration(cfg.CacheSearch) * time.Hour * 24)) {
+						os.Remove(path)
+					}
+				default:
+					if info.ModTime().Before(time.Now().Add(-24 * time.Hour)) {
+						os.Remove(path)
 					}
 				}
-				return err
+
+				return nil
 			})
 			time.Sleep(1 * time.Minute)
 		}

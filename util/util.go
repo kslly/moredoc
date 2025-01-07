@@ -241,17 +241,16 @@ func GetCommandVersion(command string) string {
 }
 
 // 获取系统发行版本信息
-func GetOSRelease() (osVersion string, err error) {
+func GetOSRelease() string {
 	var (
-		content       []byte
-		name, version string
+		name    string
+		version string
 	)
-	osVersion = runtime.GOOS // 默认为GOOS
 	switch runtime.GOOS {
 	case "linux":
-		content, err = os.ReadFile("/etc/os-release")
+		content, err := os.ReadFile("/etc/os-release")
 		if err != nil {
-			return
+			return runtime.GOOS
 		}
 		lines := strings.Split(string(content), "\n")
 		for _, line := range lines {
@@ -263,10 +262,10 @@ func GetOSRelease() (osVersion string, err error) {
 			}
 		}
 		if name != "" {
-			osVersion = name + " " + version
+			return name + " " + version
 		}
 	}
-	return
+	return runtime.GOOS
 }
 
 func InSlice[T Any](slice []T, value T) bool {

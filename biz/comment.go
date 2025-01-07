@@ -97,10 +97,9 @@ func (s *CommentAPIService) UpdateComment(ctx context.Context, req *pb.Comment) 
 	s.logger.Debug("UpdateComment", zap.Any("user", userClaims), zap.Any("req", req))
 
 	// 只允许更新评论状态和内容
-	updateFields := []string{"content", "status"}
 	comment := &model.Comment{}
 	util.CopyStruct(req, comment)
-	err = s.dbModel.UpdateComment(comment, updateFields...)
+	err = s.dbModel.UpdateByFields(comment, model.TableComment, comment.Id, "content", "status")
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "更新评论失败")
 	}
@@ -135,7 +134,8 @@ func (s *CommentAPIService) GetComment(ctx context.Context, req *pb.GetCommentRe
 		return nil, err
 	}
 	s.logger.Debug("GetComment", zap.Any("req", req))
-	comment, err := s.dbModel.GetComment(req.Id)
+	comment := &model.Comment{}
+	err = s.dbModel.GetByID(req.Id, comment)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "获取评论失败:"+err.Error())
 	}
@@ -152,7 +152,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 	userClaims, _ := s.checkPermission(ctx)
 	isLogin := userClaims != nil
 	haveAccess := userClaims != nil && userClaims.HaveAccess
-	opt := &model.OptionGetCommentList{
+	opt := &model.OptionGetList{
 		Page:      int(req.Page),
 		Size:      int(req.Size_),
 		WithCount: true,
@@ -224,7 +224,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 	}
 
 	if len(userIds) > 0 {
-		users, _, _ := s.dbModel.GetUserList(&model.OptionGetUserList{
+		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
 			SelectFields: model.UserPublicFields,
 			WithCount:    false,
 			QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(userIds)},
@@ -240,7 +240,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 
 	if req.WithDocumentTitle {
 		if len(documentIds) > 0 {
-			documents, _, _ := s.dbModel.GetDocumentList(&model.OptionGetDocumentList{
+			documents, _, _ := s.dbModel.GetDocumentList(&model.OptionGetList{
 				SelectFields: []string{"id", "title", "uuid"},
 				WithCount:    false,
 				QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(documentIds)},

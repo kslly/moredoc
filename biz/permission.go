@@ -35,11 +35,11 @@ func (s *PermissionAPIService) UpdatePermission(ctx context.Context, req *pb.Per
 		return nil, err
 	}
 
-	err = s.dbModel.UpdatePermission(&model.Permission{
+	err = s.dbModel.UpdateByFields(&model.Permission{
 		Id:          req.Id,
 		Title:       req.Title,
 		Description: req.Description,
-	}, "title", "description")
+	}, model.TablePermission, req.Id, "title", "description")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -54,7 +54,8 @@ func (s *PermissionAPIService) GetPermission(ctx context.Context, req *pb.GetPer
 		return nil, err
 	}
 
-	permission, err := s.dbModel.GetPermission(req.Id)
+	permission := &model.Permission{}
+	err = s.dbModel.GetByID(req.Id, permission)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -72,7 +73,7 @@ func (s *PermissionAPIService) ListPermission(ctx context.Context, req *pb.ListP
 		return nil, err
 	}
 
-	opt := &model.OptionGetPermissionList{
+	opt := &model.OptionGetList{
 		Page:      int(req.Page),
 		Size:      int(req.Size_),
 		WithCount: true,

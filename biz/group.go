@@ -98,7 +98,8 @@ func (s *GroupAPIService) DeleteGroup(ctx context.Context, req *pb.DeleteGroupRe
 
 func (s *GroupAPIService) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*pb.Group, error) {
 	s.logger.Debug("GetGroup", zap.Any("req", req))
-	group, err := s.dbModel.GetGroup(req.Id)
+	group := &model.Group{}
+	err := s.dbModel.GetByID(req.Id, group)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -112,7 +113,7 @@ func (s *GroupAPIService) GetGroup(ctx context.Context, req *pb.GetGroupRequest)
 // ListGroup 列出用户组。所有用户都可以查询
 func (s *GroupAPIService) ListGroup(ctx context.Context, req *pb.ListGroupRequest) (*pb.ListGroupReply, error) {
 	s.logger.Debug("ListGroup", zap.Any("req", req))
-	opt := &model.OptionGetGroupList{
+	opt := &model.OptionGetList{
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
 		SelectFields: req.Field,

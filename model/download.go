@@ -19,10 +19,6 @@ type Download struct {
 	UpdatedAt  *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (Download) TableName() string {
-	return tablePrefix + "download"
-}
-
 // CreateDownload 创建Download
 func (m *DBModel) CreateDownload(download *Download) (err error) {
 	tx := m.db.Begin()
@@ -65,46 +61,20 @@ func (m *DBModel) CreateDownload(download *Download) (err error) {
 	return
 }
 
-// GetDownload 根据id获取Download
-func (m *DBModel) GetDownload(id interface{}, fields ...string) (download Download, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(Download{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&download).Error
-	return
-}
-
-type OptionGetDownloadList struct {
-	Page      int
-	Size      int
-	WithCount bool                     // 是否返回总数
-	Ids       []interface{}            // id列表
-	QueryIn   map[string][]interface{} // map[field][]{value1,value2,...}
-}
-
 // GetDownloadList 获取Download列表
-func (m *DBModel) GetDownloadList(opt *OptionGetDownloadList) (downloadList []*v1.Download, total int64, err error) {
-	var (
-		tableDownload = Download{}.TableName()
-		tableDocument = Document{}.TableName()
-	)
-
+func (m *DBModel) GetDownloadList(opt *OptionGetList) (downloadList []*v1.Download, total int64, err error) {
 	db := m.db.Model(&Download{})
-	db = m.generateQueryIn(db, tableDownload+" "+tableDownload /* 加上表别名，防止字段冲突 */, opt.QueryIn)
+	db = m.generateQueryIn(db, TableDownload+" "+TableDownload /* 加上表别名，防止字段冲突 */, opt.QueryIn)
 	if len(opt.Ids) > 0 {
-		db = db.Where(fmt.Sprintf("%s.id in (?)", tableDownload), opt.Ids)
+		db = db.Where(fmt.Sprintf("%s.id in (?)", TableDownload), opt.Ids)
 	}
 
 	db = db.Joins(
 		fmt.Sprintf(
 			"left join %s on %s.document_id = %s.id",
-			tableDocument, tableDownload, tableDocument,
+			TableDocument, TableDownload, TableDocument,
 		)).
-		Where(fmt.Sprintf("%s.id > ?", tableDocument), 0)
+		Where(fmt.Sprintf("%s.id > ?", TableDocument), 0)
 
 	if opt.WithCount {
 		err = db.Count(&total).Error
@@ -115,8 +85,9 @@ func (m *DBModel) GetDownloadList(opt *OptionGetDownloadList) (downloadList []*v
 	}
 
 	// size 为了避免字段冲突，加上了后缀_，即 size_
-	db = db.Select(fmt.Sprintf("%s.*, %s.*, %s.size as size_,%s.uuid as document_uuid", tableDocument, tableDownload, tableDocument, tableDocument))
-	db = db.Order(fmt.Sprintf("%s.id desc", tableDownload))
+	db = db.Select(fmt.Sprintf("%s.*, %s.*, %s.size as size_,%s.uuid as document_uuid",
+		TableDocument, TableDownload, TableDocument, TableDocument))
+	db = db.Order(fmt.Sprintf("%s.id desc", TableDownload))
 	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
 
 	err = db.Find(&downloadList).Error

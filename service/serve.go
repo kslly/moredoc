@@ -28,7 +28,6 @@ import (
 
 // Run start server
 func Run(cfg *conf.Config, logger *zap.Logger) {
-
 	size := 100 * 1024 * 1024 // 100MB
 	dialOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -65,13 +64,6 @@ func Run(cfg *conf.Config, logger *zap.Logger) {
 
 	if yes, sqlMode := dbModel.IsSupportGroupBy(); !yes {
 		logger.Warn("IsSupportGroupBy", zap.String("告警提示", "您的数据库不支持MySQL的group by 查询"), zap.String("sql_mode", sqlMode))
-		// logger.Warn("自动设置全局 sql_mode，但仍建议修改数据库的 sql_mode 配置，去掉 ONLY_FULL_GROUP_BY")
-		// err = dbModel.SetSQLMode()
-		// if err != nil {
-		// 	logger.Error("设置sql_mode失败", zap.Error(err))
-		// } else {
-		// 	logger.Info("设置sql_mode成功")
-		// }
 	}
 
 	if cfg.Level != "debug" {

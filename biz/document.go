@@ -58,7 +58,7 @@ func (s *DocumentAPIService) CreateDocument(ctx context.Context, req *pb.CreateD
 	}
 
 	var (
-		attachmentIds []interface{}
+		attachmentIds []int64
 		attachmentMap = make(map[int64]model.Attachment)
 	)
 
@@ -66,7 +66,7 @@ func (s *DocumentAPIService) CreateDocument(ctx context.Context, req *pb.CreateD
 		attachmentIds = append(attachmentIds, item.AttachmentId)
 	}
 
-	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetAttachmentList{
+	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetList{
 		Ids:     attachmentIds,
 		QueryIn: map[string][]interface{}{"user_id": {userClaims.UserId}},
 	})
@@ -177,10 +177,10 @@ func (s *DocumentAPIService) DeleteDocument(ctx context.Context, req *pb.DeleteD
 	errNoPermission := status.Errorf(codes.PermissionDenied, "文档不存在或没有删除权限")
 	ids := req.Id
 	if err != nil { // 普通用户，只能删除自己创建的文档
-		userDocs, _, _ := s.dbModel.GetDocumentList(&model.OptionGetDocumentList{
+		userDocs, _, _ := s.dbModel.GetDocumentList(&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"id"},
-			Ids:          util.Slice2Interface(req.Id),
+			Ids:          req.Id,
 			QueryIn:      map[string][]interface{}{"user_id": {userClaims.UserId}},
 		})
 
@@ -235,7 +235,7 @@ func (s *DocumentAPIService) GetDocument(ctx context.Context, req *pb.GetDocumen
 	pbDoc := &pb.Document{}
 	util.CopyStruct(doc, pbDoc)
 	docCates, _, _ := s.dbModel.GetDocumentCategoryList(
-		&model.OptionGetDocumentCategoryList{
+		&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"category_id"},
 			QueryIn:      map[string][]interface{}{"document_id": {doc.Id}},
@@ -320,7 +320,7 @@ func (s *DocumentAPIService) GetDocument(ctx context.Context, req *pb.GetDocumen
 // 1. 对于普通用户，只能查询未禁用的文档，且最多只能查询100页
 // 2. 对于管理员，可以查询所有文档，可以根据关键字进行查询
 func (s *DocumentAPIService) ListDocument(ctx context.Context, req *pb.ListDocumentRequest) (*pb.ListDocumentReply, error) {
-	opt := &model.OptionGetDocumentList{
+	opt := &model.OptionGetList{
 		WithCount:    req.Limit <= 0,
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
@@ -412,7 +412,7 @@ func (s *DocumentAPIService) ListRecycleDocument(ctx context.Context, req *pb.Li
 		return nil, status.Error(codes.PermissionDenied, err.Error())
 	}
 
-	opt := &model.OptionGetDocumentList{
+	opt := &model.OptionGetList{
 		WithCount:    true,
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
@@ -495,7 +495,7 @@ func (s *DocumentAPIService) ClearRecycleDocument(ctx context.Context, req *empt
 	return &emptypb.Empty{}, nil
 }
 
-func (s *DocumentAPIService) listDocument(opt *model.OptionGetDocumentList, ctx context.Context) (*pb.ListDocumentReply, error) {
+func (s *DocumentAPIService) listDocument(opt *model.OptionGetList, ctx context.Context) (*pb.ListDocumentReply, error) {
 	docs, total, err := s.dbModel.GetDocumentList(opt)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -554,7 +554,7 @@ func (s *DocumentAPIService) listDocument(opt *model.OptionGetDocumentList, ctx 
 	}
 
 	if len(pbDocs) > 0 {
-		docCates, _, _ = s.dbModel.GetDocumentCategoryList(&model.OptionGetDocumentCategoryList{
+		docCates, _, _ = s.dbModel.GetDocumentCategoryList(&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"document_id", "category_id"},
 			QueryIn:      map[string][]interface{}{"document_id": util.Slice2Interface(docIds)},
@@ -563,14 +563,14 @@ func (s *DocumentAPIService) listDocument(opt *model.OptionGetDocumentList, ctx 
 			pbDocs[docIndexMap[docCate.DocumentId]].CategoryId = append(pbDocs[docIndexMap[docCate.DocumentId]].CategoryId, docCate.CategoryId)
 		}
 
-		docUsers, _, _ = s.dbModel.GetUserList(&model.OptionGetUserList{
+		docUsers, _, _ = s.dbModel.GetUserList(&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"id", "username"},
 			QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(userIds)},
 		})
 
 		// 查找文档相关联的附件。对于列表，只返回hash和id，不返回其他字段
-		attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetAttachmentList{
+		attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"hash", "id", "type_id"},
 			QueryIn: map[string][]interface{}{
@@ -627,7 +627,7 @@ func (s *DocumentAPIService) SetDocumentRecommend(ctx context.Context, req *pb.S
 
 func (s *DocumentAPIService) ListDocumentForHome(ctx context.Context, req *pb.ListDocumentForHomeRequest) (*pb.ListDocumentForHomeResponse, error) {
 	// 1. 查询启用了的分类
-	categories, _, _ := s.dbModel.GetCategoryList(&model.OptionGetCategoryList{
+	categories, _, _ := s.dbModel.GetCategoryList(&model.OptionGetList{
 		WithCount: false,
 		QueryIn: map[string][]interface{}{
 			"enable":    {true},
@@ -653,7 +653,7 @@ func (s *DocumentAPIService) ListDocumentForHome(ctx context.Context, req *pb.Li
 	var docIds []int64
 	resp := &pb.ListDocumentForHomeResponse{}
 	for _, category := range categories {
-		docs, _, _ := s.dbModel.GetDocumentList(&model.OptionGetDocumentList{
+		docs, _, _ := s.dbModel.GetDocumentList(&model.OptionGetList{
 			WithCount: false,
 			QueryIn: map[string][]interface{}{
 				"category_id": {category.Id},
@@ -680,7 +680,7 @@ func (s *DocumentAPIService) ListDocumentForHome(ctx context.Context, req *pb.Li
 	}
 
 	// 查找文档相关联的附件。对于列表，只返回hash和id，不返回其他字段
-	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetAttachmentList{
+	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetList{
 		WithCount:    false,
 		SelectFields: []string{"hash", "id", "type_id"},
 		QueryIn: map[string][]interface{}{
@@ -709,7 +709,7 @@ func (s *DocumentAPIService) ListDocumentForHome(ctx context.Context, req *pb.Li
 func (s *DocumentAPIService) SearchDocument(ctx context.Context, req *pb.SearchDocumentRequest) (res *pb.SearchDocumentReply, err error) {
 	res = &pb.SearchDocumentReply{}
 	now := time.Now()
-	opt := &model.OptionGetDocumentList{
+	opt := &model.OptionGetList{
 		WithCount:  true,
 		Page:       int(req.Page),
 		Size:       int(req.Size_),
@@ -893,7 +893,7 @@ func (s *DocumentAPIService) DownloadDocument(ctx context.Context, req *pb.Docum
 		return res, status.Errorf(codes.Internal, "创建下载失败：%s", err.Error())
 	}
 
-	s.dbModel.CreateDynamic(&model.Dynamic{
+	s.dbModel.Create(&model.Dynamic{
 		UserId:  userId,
 		Type:    model.DynamicTypeDownload,
 		Content: fmt.Sprintf(`下载了文档《<a href="/document/%s">%s</a>》`, doc.UUID, html.EscapeString(doc.Title)),
@@ -946,7 +946,7 @@ func (s *DocumentAPIService) GetRelatedDocuments(ctx context.Context, req *pb.Do
 		docIdMapIndex[doc.Id] = idx
 	}
 
-	docUsers, _, _ := s.dbModel.GetUserList(&model.OptionGetUserList{
+	docUsers, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
 		WithCount:    false,
 		SelectFields: []string{"id", "username"},
 		QueryIn:      map[string][]interface{}{"id": userIds},
@@ -960,7 +960,7 @@ func (s *DocumentAPIService) GetRelatedDocuments(ctx context.Context, req *pb.Do
 	}
 
 	// 查找文档相关联的附件。对于列表，只返回hash和id，不返回其他字段
-	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetAttachmentList{
+	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetList{
 		WithCount:    false,
 		SelectFields: []string{"hash", "id", "type_id"},
 		QueryIn: map[string][]interface{}{

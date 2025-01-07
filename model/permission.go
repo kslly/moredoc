@@ -17,54 +17,11 @@ type Permission struct {
 	UpdatedAt   *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (Permission) TableName() string {
-	return tablePrefix + "permission"
-}
-
-// CreatePermission 创建Permission
-func (m *DBModel) CreatePermission(permission *Permission) (err error) {
-	err = m.db.Create(permission).Error
-	if err != nil {
-		m.logger.Error("CreatePermission", zap.Error(err))
-		return
-	}
-	return
-}
-
-// UpdatePermission 更新Permission，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdatePermission(permission *Permission, updateFields ...string) (err error) {
-	db := m.db.Model(permission)
-
-	updateFields = m.FilterValidFields(Permission{}.TableName(), updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	}
-
-	err = db.Where("id = ?", permission.Id).Updates(permission).Error
-	if err != nil {
-		m.logger.Error("UpdatePermission", zap.Error(err))
-	}
-	return
-}
-
-// GetPermission 根据id获取Permission
-func (m *DBModel) GetPermission(id interface{}, fields ...string) (permission Permission, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(Permission{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&permission).Error
-	return
-}
-
 // GetPermissionByMethodPath
 func (m *DBModel) GetPermissionByMethodPath(method, path string, createIfNotExist bool, fields ...string) (permission Permission, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Permission{}.TableName(), fields...)
+	fields = m.FilterValidFields(TablePermission, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -92,20 +49,11 @@ func (m *DBModel) GetPermissionByMethodPath(method, path string, createIfNotExis
 		}
 		permission.Method = method
 		permission.Path = path
-		err = m.CreatePermission(&permission)
+		err = m.Create(&permission)
 		if err != nil {
 			m.logger.Error("GetPermissionByIdentifier", zap.Error(err))
 			return
 		}
-	}
-	return
-}
-
-// DeletePermission 删除数据
-func (m *DBModel) DeletePermission(ids []interface{}) (err error) {
-	err = m.db.Where("id in (?)", ids).Delete(&Permission{}).Error
-	if err != nil {
-		m.logger.Error("DeletePermission", zap.Error(err))
 	}
 	return
 }
@@ -164,34 +112,12 @@ func (m *DBModel) CheckPermissionByGroupId(groupId []int64, method, path string)
 	return permission, groupPermission.Id > 0
 }
 
-type OptionGetPermissionList struct {
-	Page         int
-	Size         int
-	WithCount    bool                     // 是否返回总数
-	SelectFields []string                 // 查询字段
-	QueryIn      map[string][]interface{} // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{} // map[field][]{value1,value2,...}
-}
-
 // GetPermissionList 获取Permission列表
-func (m *DBModel) GetPermissionList(opt *OptionGetPermissionList) (permissionList []Permission, total int64, err error) {
-	db := m.db.Model(&Permission{})
-	tableName := Permission{}.TableName()
-
-	db = m.generateQueryIn(db, tableName, opt.QueryIn)
-	db = m.generateQueryLike(db, tableName, opt.QueryLike)
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetPermissionList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableName, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
+func (m *DBModel) GetPermissionList(opt *OptionGetList) (permissionList []Permission, total int64, err error) {
+	db, total, err := m.queryCond(TablePermission, &Permission{}, opt)
+	if err != nil {
+		m.logger.Error("err:", zap.Error(err))
+		return nil, total, err
 	}
 
 	db = db.Order("path asc").Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)

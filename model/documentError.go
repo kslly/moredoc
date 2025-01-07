@@ -14,10 +14,6 @@ type DocumentError struct {
 	UpdatedAt *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (DocumentError) TableName() string {
-	return tablePrefix + "document_error"
-}
-
 // SetDocumentConvertError 设置文档转换失败的错误信息
 // 如果 err 为 nil，则删除转换失败的记录
 // 如果 err 不为 nil，则创建或更新转换失败的记录
@@ -38,7 +34,7 @@ func (m *DBModel) SetDocumentConvertError(documentId int64, err error) error {
 	var exist DocumentError
 	if err = m.db.First(&exist, documentId).Error; err != nil {
 		// 如果不存在，则创建
-		err = m.db.Create(de).Error
+		err = m.Create(de)
 		if err != nil {
 			m.logger.Error("SetConvertError", zap.Error(err))
 		}

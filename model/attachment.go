@@ -61,32 +61,8 @@ type AttachmentContent struct {
 	UpdatedAt   *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (Attachment) TableName() string {
-	return tablePrefix + "attachment"
-}
-
 func (AttachmentContent) TableName() string {
 	return tablePrefix + "attachment_content"
-}
-
-// CreateAttachment 创建Attachment
-func (m *DBModel) CreateAttachment(attachment *Attachment) (err error) {
-	err = m.db.Create(attachment).Error
-	if err != nil {
-		m.logger.Error("CreateAttachment", zap.Error(err))
-		return
-	}
-	return
-}
-
-// CreateAttachment 创建Attachment
-func (m *DBModel) CreateAttachments(attachments []*Attachment) (err error) {
-	err = m.db.Create(attachments).Error
-	if err != nil {
-		m.logger.Error("CreateAttachment", zap.Error(err))
-		return
-	}
-	return
 }
 
 // GetAttachmentTypeName 获取附件类型名称
@@ -95,99 +71,16 @@ func (m *DBModel) GetAttachmentTypeName(typ int) string {
 	return name
 }
 
-// UpdateAttachment 更新Attachment，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdateAttachment(attachment *Attachment, updateFields ...string) (err error) {
-	db := m.db.Model(attachment)
-	tableName := Attachment{}.TableName()
-
-	updateFields = m.FilterValidFields(tableName, updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	} else { // 更新全部字段，包括零值字段
-		db = db.Select(m.GetTableFields(tableName))
-	}
-
-	err = db.Where("id = ?", attachment.Id).Updates(attachment).Error
-	if err != nil {
-		m.logger.Error("UpdateAttachment", zap.Error(err))
-	}
-	return
-}
-
 // GetAttachment 根据id获取Attachment
 func (m *DBModel) GetAttachment(id int64, fields ...string) (attachment Attachment, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Attachment{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableAttachment, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
 
 	err = db.Where("id = ?", id).First(&attachment).Error
-	return
-}
-
-type OptionGetAttachmentList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []interface{}             // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-}
-
-// GetAttachmentList 获取Attachment列表
-func (m *DBModel) GetAttachmentList(opt *OptionGetAttachmentList) (attachmentList []Attachment, total int64, err error) {
-	tableName := Attachment{}.TableName()
-	db := m.db.Model(&Attachment{})
-	db = m.generateQueryRange(db, tableName, opt.QueryRange)
-	db = m.generateQueryIn(db, tableName, opt.QueryIn)
-	db = m.generateQueryLike(db, tableName, opt.QueryLike)
-
-	if len(opt.Ids) > 0 {
-		db = db.Where("id in (?)", opt.Ids)
-	}
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetAttachmentList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableName, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
-	}
-
-	// TODO: 没有排序参数的话，可以自行指定排序字段
-	if len(opt.Sort) > 0 {
-		db = m.generateQuerySort(db, tableName, opt.Sort)
-	} else {
-		db = db.Order("id desc")
-	}
-
-	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
-
-	err = db.Find(&attachmentList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetAttachmentList", zap.Error(err))
-	}
-	return
-}
-
-// DeleteAttachment 删除数据
-// TODO: 删除数据之后，存在 attachment_id 的关联表，需要删除对应数据，同时相关表的统计数值，也要随着减少
-// TODO: 检查是否有相同hash的文件存在，没有的话，需要同时删除文件
-func (m *DBModel) DeleteAttachment(ids []int64) (err error) {
-	err = m.db.Where("id in (?)", ids).Delete(&Attachment{}).Error
-	if err != nil {
-		m.logger.Error("DeleteAttachment", zap.Error(err))
-	}
 	return
 }
 
@@ -280,14 +173,9 @@ func (m *DBModel) SetAttachmentContentByHash(hash string, content []byte) (err e
 	existAttachmentContent.Content = string(content)
 	existAttachmentContent.ContentSize = int64(len(content))
 	if existAttachmentContent.Id == 0 {
-		err = m.db.Create(existAttachmentContent).Error
-	} else {
-		err = m.db.Save(existAttachmentContent).Error
+		return m.Create(existAttachmentContent)
 	}
-	if err != nil {
-		m.logger.Error("SetAttachmentContent", zap.Error(err))
-	}
-	return
+	return m.db.Save(existAttachmentContent).Error
 }
 
 func (m *DBModel) GetAttachmentContent(hash string) (content *AttachmentContent, err error) {

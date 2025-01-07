@@ -19,10 +19,6 @@ type Sign struct {
 	Award     int32      `form:"award" json:"award,omitempty" gorm:"column:award;type:int(11);size:11;default:0;comment:奖励积分;"`
 }
 
-func (Sign) TableName() string {
-	return tablePrefix + "sign"
-}
-
 // CreateSign 用户签到
 // 1. 创建签到记录
 // 2. 更新用户签积分

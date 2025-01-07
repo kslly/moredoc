@@ -18,109 +18,6 @@ type ArticleRelate struct {
 	UpdatedAt        *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (ArticleRelate) TableName() string {
-	return tablePrefix + "article_relate"
-}
-
-// CreateArticleRelate 创建ArticleRelate
-func (m *DBModel) CreateArticleRelate(articleRelate *ArticleRelate) (err error) {
-	err = m.db.Create(articleRelate).Error
-	if err != nil {
-		m.logger.Error("CreateArticleRelate", zap.Error(err))
-		return
-	}
-	return
-}
-
-// UpdateArticleRelate 更新ArticleRelate，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdateArticleRelate(articleRelate *ArticleRelate, updateFields ...string) (err error) {
-	db := m.db.Model(articleRelate)
-	tableName := ArticleRelate{}.TableName()
-
-	updateFields = m.FilterValidFields(tableName, updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	} else { // 更新全部字段，包括零值字段
-		db = db.Select(m.GetTableFields(tableName))
-	}
-
-	err = db.Where("id = ?", articleRelate.Id).Updates(articleRelate).Error
-	if err != nil {
-		m.logger.Error("UpdateArticleRelate", zap.Error(err))
-	}
-	return
-}
-
-// GetArticleRelate 根据id获取ArticleRelate
-func (m *DBModel) GetArticleRelate(id int64, fields ...string) (articleRelate ArticleRelate, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(ArticleRelate{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&articleRelate).Error
-	return
-}
-
-type OptionGetArticleRelateList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []interface{}             // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-}
-
-// GetArticleRelateList 获取ArticleRelate列表
-func (m *DBModel) GetArticleRelateList(opt *OptionGetArticleRelateList) (articleRelateList []ArticleRelate, total int64, err error) {
-	tableName := ArticleRelate{}.TableName()
-	db := m.db.Model(&ArticleRelate{})
-	db = m.generateQueryRange(db, tableName, opt.QueryRange)
-	db = m.generateQueryIn(db, tableName, opt.QueryIn)
-	db = m.generateQueryLike(db, tableName, opt.QueryLike)
-
-	if len(opt.Ids) > 0 {
-		db = db.Where("id in (?)", opt.Ids)
-	}
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetArticleRelateList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableName, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
-	}
-
-	db = m.generateQuerySort(db, tableName, opt.Sort)
-
-	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
-
-	err = db.Find(&articleRelateList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetArticleRelateList", zap.Error(err))
-	}
-	return
-}
-
-// DeleteArticleRelate 删除数据
-func (m *DBModel) DeleteArticleRelate(ids []interface{}) (err error) {
-	err = m.db.Where("id in (?)", ids).Delete(&ArticleRelate{}).Error
-	if err != nil {
-		m.logger.Error("DeleteArticleRelate", zap.Error(err))
-	}
-	return
-}
-
 func (m *DBModel) GetRelatedArticles(identifier string, fields ...string) (articles []Article, err error) {
 	var (
 		relate   ArticleRelate
@@ -200,9 +97,9 @@ func (m *DBModel) GetRelatedArticles(identifier string, fields ...string) (artic
 		relate.ArticleId = article.Id
 		relate.RelatedArticleId = string(bs)
 		if relate.Id > 0 {
-			m.UpdateArticleRelate(&relate)
+			m.UpdateByFields(&relate, TableArticleRelate, relate.Id)
 		} else {
-			m.CreateArticleRelate(&relate)
+			m.Create(&relate)
 		}
 	}
 	return

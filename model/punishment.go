@@ -36,10 +36,6 @@ type PunishmentOperator struct {
 	Timestamp int64 `json:"ts"`
 }
 
-func (Punishment) TableName() string {
-	return tablePrefix + "punishment"
-}
-
 func (m *DBModel) MakePunishmentOperators(userId int64, punishmentType int32, operaterStr ...string) string {
 	var operators []PunishmentOperator
 
@@ -68,102 +64,16 @@ func (m *DBModel) MakePunishmentOperators(userId int64, punishmentType int32, op
 	return string(operatersByte)
 }
 
-// CreatePunishment 创建Punishment
-func (m *DBModel) CreatePunishment(punishment *Punishment) (err error) {
-	err = m.db.Create(punishment).Error
-	if err != nil {
-		m.logger.Error("CreatePunishment", zap.Error(err))
-		return
-	}
-	return
-}
-
-// UpdatePunishment 更新Punishment，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdatePunishment(punishment *Punishment, updateFields ...string) (err error) {
-	db := m.db.Model(punishment)
-	tableName := Punishment{}.TableName()
-
-	updateFields = m.FilterValidFields(tableName, updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	} else { // 更新全部字段，包括零值字段
-		db = db.Select(m.GetTableFields(tableName))
-	}
-
-	err = db.Where("id = ?", punishment.Id).Updates(punishment).Error
-	if err != nil {
-		m.logger.Error("UpdatePunishment", zap.Error(err))
-	}
-	return
-}
-
 // GetPunishment 根据id获取Punishment
 func (m *DBModel) GetPunishment(id interface{}, fields ...string) (punishment Punishment, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Punishment{}.TableName(), fields...)
+	fields = m.FilterValidFields(TablePunishment, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
 
 	err = db.Where("id = ?", id).First(&punishment).Error
-	return
-}
-
-type OptionGetPunishmentList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []int64                   // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-}
-
-// GetPunishmentList 获取Punishment列表
-func (m *DBModel) GetPunishmentList(opt *OptionGetPunishmentList) (punishmentList []Punishment, total int64, err error) {
-	tableName := Punishment{}.TableName()
-	db := m.db.Model(&Punishment{})
-	db = m.generateQueryRange(db, tableName, opt.QueryRange)
-	db = m.generateQueryIn(db, tableName, opt.QueryIn)
-	db = m.generateQueryLike(db, tableName, opt.QueryLike)
-
-	if len(opt.Ids) > 0 {
-		db = db.Where("id in (?)", opt.Ids)
-	}
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetPunishmentList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableName, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
-	}
-
-	db = m.generateQuerySort(db, tableName, opt.Sort)
-
-	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
-
-	err = db.Find(&punishmentList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetPunishmentList", zap.Error(err))
-	}
-	return
-}
-
-// DeletePunishment 删除数据
-func (m *DBModel) DeletePunishment(ids []int64) (err error) {
-	err = m.db.Where("id in (?)", ids).Delete(&Punishment{}).Error
-	if err != nil {
-		m.logger.Error("DeletePunishment", zap.Error(err))
-	}
 	return
 }
 

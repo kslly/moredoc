@@ -47,7 +47,7 @@ func (s *AdvertisementAPIService) CreateAdvertisement(ctx context.Context, req *
 	}
 
 	adv.UserId = userCliams.UserId
-	if err = s.dbModel.CreateAdvertisement(adv); err != nil {
+	if err = s.dbModel.Create(adv); err != nil {
 		s.logger.Error("CreateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "创建广告失败:"+err.Error())
 	}
@@ -72,14 +72,16 @@ func (s *AdvertisementAPIService) UpdateAdvertisement(ctx context.Context, req *
 		return nil, status.Errorf(codes.Internal, "更新广告失败:"+err.Error())
 	}
 
-	if err = s.dbModel.UpdateAdvertisement(adv); err != nil {
+	err = s.dbModel.UpdateByFields(adv, model.TableAdvertisement, adv.Id)
+	if err != nil {
 		s.logger.Error("UpdateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "更新广告失败:"+err.Error())
 	}
 	return &emptypb.Empty{}, nil
 }
 
-func (s *AdvertisementAPIService) DeleteAdvertisement(ctx context.Context, req *pb.DeleteAdvertisementRequest) (*emptypb.Empty, error) {
+func (s *AdvertisementAPIService) DeleteAdvertisement(ctx context.Context,
+	req *pb.DeleteAdvertisementRequest) (*emptypb.Empty, error) {
 	_, err := s.checkPermission(ctx)
 	if err != nil {
 		return nil, err
@@ -89,7 +91,8 @@ func (s *AdvertisementAPIService) DeleteAdvertisement(ctx context.Context, req *
 		return nil, status.Errorf(codes.InvalidArgument, "广告id不能为空")
 	}
 
-	if err = s.dbModel.DeleteAdvertisement(req.Id); err != nil {
+	err = s.dbModel.DeleteByIds(req.Id, &model.Advertisement{})
+	if err != nil {
 		s.logger.Error("DeleteAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "删除广告失败:"+err.Error())
 	}
@@ -100,7 +103,7 @@ func (s *AdvertisementAPIService) DeleteAdvertisement(ctx context.Context, req *
 func (s *AdvertisementAPIService) GetAdvertisementByPosition(ctx context.Context, req *pb.GetAdvertisementByPositionRequest) (*pb.ListAdvertisementReply, error) {
 	// 根据广告位获取广告
 	now := time.Now()
-	opt := &model.OptionGetAdvertisementList{
+	opt := &model.OptionGetList{
 		WithCount: false,
 		Page:      1,
 		Size:      100000,
@@ -148,7 +151,8 @@ func (s *AdvertisementAPIService) GetAdvertisement(ctx context.Context, req *pb.
 		return nil, err
 	}
 
-	ad, err := s.dbModel.GetAdvertisement(req.Id)
+	ad := &model.Advertisement{}
+	err = s.dbModel.GetByID(req.Id, ad)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		s.logger.Error("GetAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "获取广告失败:"+err.Error())
@@ -170,7 +174,7 @@ func (s *AdvertisementAPIService) ListAdvertisement(ctx context.Context, req *pb
 		return nil, err
 	}
 
-	opt := &model.OptionGetAdvertisementList{
+	opt := &model.OptionGetList{
 		WithCount: true,
 		Page:      int(req.Page),
 		Size:      int(req.Size_),

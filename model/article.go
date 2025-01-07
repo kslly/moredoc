@@ -38,8 +38,18 @@ type Article struct {
 	RejectReason  string         `form:"reject_reason" json:"reject_reason,omitempty" gorm:"column:reject_reason;type:varchar(2048);size:2048;comment:审核拒绝信息;"`
 }
 
-func (Article) TableName() string {
-	return tablePrefix + "article"
+func (m *DBModel) CheckArticles(ids []int64, status int32, reason ...string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	r := ""
+	if len(reason) > 0 {
+		r = reason[0]
+	}
+	return m.db.Model(&Article{}).Where("id in (?)", ids).Updates(map[string]interface{}{
+		"status":        status,
+		"reject_reason": r,
+	}).Error
 }
 
 func (m *DBModel) initArticle() (err error) {
@@ -89,12 +99,13 @@ func (m *DBModel) initArticle() (err error) {
 	}
 	for _, article := range articles {
 		exist, _ := m.GetArticleByIdentifier(article.Identifier, "id")
-		if exist.Id == 0 {
-			err = m.CreateArticle(&article)
-			if err != nil {
-				m.logger.Error("initArticle", zap.Error(err), zap.Any("article", article))
-				return
-			}
+		if exist.Id != 0 {
+			continue
+		}
+		err = m.CreateArticle(&article)
+		if err != nil {
+			m.logger.Error("initArticle", zap.Error(err), zap.Any("article", article))
+			return
 		}
 	}
 
@@ -243,10 +254,9 @@ func (m *DBModel) UpdateArticle(article *Article, updateFields ...string) (err e
 		}
 	}
 
-	tableName := Article{}.TableName()
-	updateFields = m.FilterValidFields(tableName, updateFields...)
+	updateFields = m.FilterValidFields(TableArticle, updateFields...)
 	if len(updateFields) == 0 { // 更新全部字段，包括零值字段
-		updateFields = m.GetTableFields(tableName)
+		updateFields = m.GetTableFields(TableArticle)
 	}
 	ignoreFields := []string{"identifier", "view_count", "favorite_count", "comment_count", "user_id"}
 	err = tx.Model(article).Select(updateFields).Where("id = ?", article.Id).Omit(ignoreFields...).Updates(article).Error
@@ -261,19 +271,15 @@ func (m *DBModel) UpdateArticle(article *Article, updateFields ...string) (err e
 
 // UpdateArticleViewCount 更新浏览量
 func (m *DBModel) UpdateArticleViewCount(id int64, viewCount int) (err error) {
-	sql := fmt.Sprintf("update %s set view_count=? where id=?", Article{}.TableName())
-	err = m.db.Exec(sql, viewCount, id).Error
-	if err != nil {
-		m.logger.Error("UpdateArticleViewCount", zap.Error(err))
-	}
-	return
+	sql := fmt.Sprintf("update %s set view_count=? where id=?", TableArticle)
+	return m.db.Exec(sql, viewCount, id).Error
 }
 
 // GetArticle 根据id获取Article
 func (m *DBModel) GetArticle(id interface{}, fields ...string) (article Article, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Article{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableArticle, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -295,7 +301,7 @@ func (m *DBModel) GetArticle(id interface{}, fields ...string) (article Article,
 func (m *DBModel) GetArticleByIdentifier(identifier string, fields ...string) (article Article, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Article{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableArticle, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -317,23 +323,9 @@ func (m *DBModel) GetArticleByIdentifier(identifier string, fields ...string) (a
 	return
 }
 
-type OptionGetArticleList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []interface{}             // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-	IsRecycle    bool   // 是否是回收站模式查询
-	IsRecommend  []bool // 是否是推荐模式查询
-}
-
 // GetArticleList 获取Article列表
 func (m *DBModel) GetArticleList(opt *OptionGetArticleList) (articleList []Article, total int64, err error) {
-	tableName := Article{}.TableName() + " a"
+	tableName := TableArticle + " a"
 	db := m.db.Table(tableName).Unscoped()
 	db = m.generateQueryRange(db, tableName, opt.QueryRange)
 	db = m.generateQueryIn(db, tableName, opt.QueryIn)
@@ -344,8 +336,7 @@ func (m *DBModel) GetArticleList(opt *OptionGetArticleList) (articleList []Artic
 	}
 
 	if categoryIds, ok := opt.QueryIn["category_id"]; ok && len(categoryIds) > 0 {
-		tableCategory := ArticleCategory{}.TableName()
-		db = db.Joins("left join "+tableCategory+" ac on ac.article_id = a.id").Where("ac.category_id in (?)", categoryIds)
+		db = db.Joins("left join "+TableArticleCategory+" ac on ac.article_id = a.id").Where("ac.category_id in (?)", categoryIds)
 	}
 
 	if opt.IsRecycle {
@@ -587,11 +578,6 @@ func (m *DBModel) checkArticleFile(article *Article) {
 	}
 }
 
-func (m *DBModel) CountArticle() (count int64, err error) {
-	err = m.db.Model(&Article{}).Count(&count).Error
-	return
-}
-
 // 从回收站中恢复选中的文章
 func (m *DBModel) RestoreArticle(ids []int64) (err error) {
 	if len(ids) == 0 {
@@ -651,29 +637,7 @@ func (m *DBModel) RecommendArticles(articleIds []int64, isRecommend bool) (err e
 	if !isRecommend {
 		val = nil
 	}
-	err = m.db.Model(&Article{}).Where("id in (?)", articleIds).Update("recommend_at", val).Error
-	if err != nil {
-		m.logger.Error("RecommendArticles", zap.Error(err))
-	}
-	return
-}
-
-func (m *DBModel) CheckArticles(ids []int64, status int32, reason ...string) (err error) {
-	if len(ids) == 0 {
-		return
-	}
-	r := ""
-	if len(reason) > 0 {
-		r = reason[0]
-	}
-	err = m.db.Model(&Article{}).Where("id in (?)", ids).Updates(map[string]interface{}{
-		"status":        status,
-		"reject_reason": r,
-	}).Error
-	if err != nil {
-		m.logger.Error("CheckArticles", zap.Error(err))
-	}
-	return
+	return m.db.Model(&Article{}).Where("id in (?)", articleIds).Update("recommend_at", val).Error
 }
 
 func (m *DBModel) GetDefaultArticleStatus(userId int64) (status int32) {
@@ -683,8 +647,8 @@ func (m *DBModel) GetDefaultArticleStatus(userId int64) (status int32) {
 	}
 
 	var group Group
-	m.db.Select("g.id", "min(g.enable_article_approval) as enable_article_approval").Table(Group{}.TableName()+" g").Joins(
-		"left join "+UserGroup{}.TableName()+" ug on g.id=ug.group_id",
+	m.db.Select("g.id", "min(g.enable_article_approval) as enable_article_approval").Table(TableGroup+" g").Joins(
+		"left join "+TableUserGroup+" ug on g.id=ug.group_id",
 	).Where("ug.user_id = ? and g.enable_article = ?", userId, true).Find(&group)
 
 	m.logger.Debug("GetDefaultArticleStatus", zap.Any("group", group))

@@ -37,7 +37,7 @@ func (s *BannerAPIService) CreateBanner(ctx context.Context, req *pb.Banner) (*p
 
 	var banner model.Banner
 	util.CopyStruct(req, &banner)
-	err = s.dbModel.CreateBanner(&banner)
+	err = s.dbModel.Create(&banner)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -56,7 +56,7 @@ func (s *BannerAPIService) UpdateBanner(ctx context.Context, req *pb.Banner) (*e
 
 	var banner model.Banner
 	util.CopyStruct(req, &banner)
-	err = s.dbModel.UpdateBanner(&banner)
+	err = s.dbModel.UpdateByFields(&banner, model.TableBanner, banner.Id)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -83,7 +83,8 @@ func (s *BannerAPIService) GetBanner(ctx context.Context, req *pb.GetBannerReque
 		return nil, errPermission
 	}
 
-	banner, err := s.dbModel.GetBanner(req.Id)
+	banner := &model.Banner{}
+	err := s.dbModel.GetByID(req.Id, banner)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -95,7 +96,7 @@ func (s *BannerAPIService) GetBanner(ctx context.Context, req *pb.GetBannerReque
 
 // GetBanners 获取轮播图列表
 func (s *BannerAPIService) ListBanner(ctx context.Context, req *pb.ListBannerRequest) (*pb.ListBannerReply, error) {
-	var opt = &model.OptionGetBannerList{
+	var opt = &model.OptionGetList{
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
 		WithCount:    true,

@@ -25,10 +25,6 @@ type Favorite struct {
 	IP         string    `form:"ip" json:"ip,omitempty" gorm:"column:ip;type:varchar(64);size:64;default:'';comment:IP地址;"`
 }
 
-func (Favorite) TableName() string {
-	return tablePrefix + "favorite"
-}
-
 // CreateFavorite 创建Favorite
 func (m *DBModel) CreateDocumentFavorite(favorite *Favorite) (err error) {
 	tx := m.db.Begin()
@@ -158,34 +154,13 @@ func (m *DBModel) GetUserFavorite(userId int64, DocumentId int64, favoriteType i
 	return
 }
 
-// GetFavorite 根据id获取Favorite
-func (m *DBModel) GetFavorite(id int64, fields ...string) (favorite Favorite, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(Favorite{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&favorite).Error
-	return
-}
-
-type OptionGetFavoriteList struct {
-	Page         int
-	Size         int
-	WithCount    bool
-	SelectFields []string                 // 查询字段
-	QueryIn      map[string][]interface{} // map[field][]{value1,value2,...}
-}
-
 // GetFavoriteList 获取Favorite列表
-func (m *DBModel) GetDocumentFavoriteList(opt *OptionGetFavoriteList, documentStatus ...int) (favoriteList []*pb.Favorite, total int64, err error) {
-	tableFavorite := Favorite{}.TableName() + " f"
+func (m *DBModel) GetDocumentFavoriteList(opt *OptionGetList, documentStatus ...int) (favoriteList []*pb.Favorite, total int64, err error) {
+	tableFavorite := TableFavorite + " f"
 	db := m.db.
 		Table(tableFavorite).
 		Joins(
-			fmt.Sprintf("left join %s d on f.document_id = d.id", Document{}.TableName()),
+			fmt.Sprintf("left join %s d on f.document_id = d.id", TableDocument),
 		)
 	db = m.generateQueryIn(db, tableFavorite, opt.QueryIn)
 	db = db.Where("f.type = ?", FavoritetypeDocument)
@@ -217,12 +192,12 @@ func (m *DBModel) GetDocumentFavoriteList(opt *OptionGetFavoriteList, documentSt
 }
 
 // 获取文章收藏列表
-func (m *DBModel) GetArticleFavoriteList(opt *OptionGetFavoriteList, articleStatus ...int) (favoriteList []*pb.Favorite, total int64, err error) {
-	tableFavorite := Favorite{}.TableName() + " f"
+func (m *DBModel) GetArticleFavoriteList(opt *OptionGetList, articleStatus ...int) (favoriteList []*pb.Favorite, total int64, err error) {
+	tableFavorite := TableFavorite + " f"
 	db := m.db.
 		Table(tableFavorite).
 		Joins(
-			fmt.Sprintf("left join %s a on f.document_id = a.id", Article{}.TableName()),
+			fmt.Sprintf("left join %s a on f.document_id = a.id", TableArticle),
 		)
 	db = m.generateQueryIn(db, tableFavorite, opt.QueryIn)
 

@@ -15,21 +15,17 @@ type Logout struct {
 	CreatedAt *time.Time `form:"created_at" json:"created_at,omitempty" gorm:"column:created_at;type:datetime;comment:创建时间;"`
 }
 
-func (Logout) TableName() string {
-	return tablePrefix + "logout"
-}
-
 // SetLogout 设置退出登录
 func (m *DBModel) Logout(userId int64, uuid string, expiredAt int64) {
 	// 将token加入到退出登录表中
 	m.invalidToken.Store(uuid, struct{}{})
 	m.validToken.Delete(uuid)
-	logout := &Logout{
+	err := m.Create(&Logout{
 		UserId:    userId,
 		UUID:      uuid,
 		ExpiredAt: expiredAt,
-	}
-	if err := m.db.Create(logout).Error; err != nil {
+	})
+	if err != nil {
 		m.logger.Error("SetLogout", zap.Error(err))
 	}
 }

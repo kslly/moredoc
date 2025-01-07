@@ -136,7 +136,7 @@ func (s *UserAPIService) Register(ctx context.Context, req *pb.RegisterAndLoginR
 
 	if cfgScore.Register > 0 {
 		// 积分记录
-		s.dbModel.CreateDynamic(&model.Dynamic{
+		s.dbModel.Create(&model.Dynamic{
 			UserId:  user.Id,
 			Type:    model.DynamicTypeRegister,
 			Content: fmt.Sprintf("成功注册成网站会员，获得 %d %s奖励", cfgScore.Register, cfgScore.CreditName),
@@ -153,7 +153,8 @@ func (s *UserAPIService) Register(ctx context.Context, req *pb.RegisterAndLoginR
 
 	if latestEmailCode.Id > 0 {
 		// 标记邮箱验证码已使用
-		s.dbModel.UpdateEmailCode(&model.EmailCode{Id: latestEmailCode.Id, IsUsed: true}, "is_used")
+		s.dbModel.UpdateByFields(&model.EmailCode{Id: latestEmailCode.Id, IsUsed: true},
+			model.TableEmailCode, latestEmailCode.Id, "is_used")
 	}
 
 	return &pb.LoginReply{Token: token, User: pbUser}, nil
@@ -201,7 +202,9 @@ func (s *UserAPIService) Login(ctx context.Context, req *pb.RegisterAndLoginRequ
 
 	ip := util.GetGRPCRemoteIP(ctx)
 	loginAt := time.Now()
-	if e := s.dbModel.UpdateUser(&model.User{Id: user.Id, LoginAt: &loginAt, LastLoginIp: ip}, "login_at", "last_login_ip"); e != nil {
+	e := s.dbModel.UpdateByFields(&model.User{Id: user.Id, LoginAt: &loginAt, LastLoginIp: ip},
+		model.TableUser, user.Id, "login_at", "last_login_ip")
+	if e != nil {
 		s.logger.Error("UpdateUser", zap.Error(e))
 	}
 
@@ -294,7 +297,7 @@ func (s *UserAPIService) UpdateUserProfile(ctx context.Context, req *pb.User) (*
 		user.Id = userClaims.UserId // 用户更改自身信息
 	}
 
-	if err := s.dbModel.UpdateUser(user, fields...); err != nil {
+	if err := s.dbModel.UpdateByFields(user, model.TableUser, user.Id, fields...); err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	return &emptypb.Empty{}, nil
@@ -383,7 +386,7 @@ func (s *UserAPIService) ListUser(ctx context.Context, req *pb.ListUserRequest) 
 		userId = userClaims.UserId
 	}
 
-	opt := &model.OptionGetUserList{
+	opt := &model.OptionGetList{
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
 		WithCount:    true,
@@ -442,7 +445,7 @@ func (s *UserAPIService) ListUser(ctx context.Context, req *pb.ListUserRequest) 
 		userIndex[pbUser.Id] = index
 	}
 
-	userGroups, _, _ := s.dbModel.GetUserGroupList(&model.OptionGetUserGroupList{
+	userGroups, _, _ := s.dbModel.GetUserGroupList(&model.OptionGetList{
 		QueryIn: map[string][]interface{}{"user_id": userIds},
 	})
 
@@ -618,7 +621,7 @@ func (s *UserAPIService) ListUserDynamic(ctx context.Context, req *v1.ListUserDy
 		return nil, err
 	}
 
-	opt := &model.OptionGetDynamicList{
+	opt := &model.OptionGetList{
 		WithCount: true,
 		Page:      int(req.Page),
 		Size:      int(req.Size_),
@@ -771,7 +774,7 @@ func (s *UserAPIService) ListUserDownload(ctx context.Context, req *v1.ListUserD
 	}
 
 	// 查询下载列表
-	opt := &model.OptionGetDownloadList{
+	opt := &model.OptionGetList{
 		QueryIn:   make(map[string][]interface{}),
 		Page:      int(req.Page),
 		Size:      int(req.Size_),
@@ -861,7 +864,7 @@ func (s *UserAPIService) SendEmailCode(ctx context.Context, req *v1.SendEmailCod
 		code.Success = false
 	}
 
-	err = s.dbModel.CreateEmailCode(&code)
+	err = s.dbModel.Create(&code)
 	if err != nil {
 		s.logger.Error("创建验证码失败", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())

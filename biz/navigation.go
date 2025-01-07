@@ -101,7 +101,8 @@ func (s *NavigationAPIService) DeleteNavigation(ctx context.Context, req *pb.Del
 }
 
 func (s *NavigationAPIService) GetNavigation(ctx context.Context, req *pb.GetNavigationRequest) (*pb.Navigation, error) {
-	nav, err := s.dbModel.GetNavigation(req.Id)
+	nav := &model.Navigation{}
+	err := s.dbModel.GetByID(req.Id, nav)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		s.logger.Error("GetNavigation", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
@@ -118,7 +119,7 @@ func (s *NavigationAPIService) GetNavigation(ctx context.Context, req *pb.GetNav
 }
 
 func (s *NavigationAPIService) ListNavigation(ctx context.Context, req *pb.ListNavigationRequest) (*pb.ListNavigationReply, error) {
-	opt := &model.OptionGetNavigationList{
+	opt := &model.OptionGetList{
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
 		WithCount:    true,

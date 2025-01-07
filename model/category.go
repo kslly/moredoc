@@ -30,13 +30,9 @@ type Category struct {
 	UpdatedAt       *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (Category) TableName() string {
-	return tablePrefix + "category"
-}
-
 // CreateCategory 创建Category
 func (m *DBModel) CreateCategory(category *Category) (err error) {
-	err = m.db.Create(category).Error
+	err = m.Create(category)
 	if err != nil {
 		m.logger.Error("CreateCategory", zap.Error(err))
 		return
@@ -139,11 +135,11 @@ func (m *DBModel) UpdateCategory(category *Category, updateFields ...string) (er
 
 	db := tx.Model(category)
 
-	updateFields = m.FilterValidFields(Category{}.TableName(), updateFields...)
+	updateFields = m.FilterValidFields(TableCategory, updateFields...)
 	if len(updateFields) > 0 { // 更新指定字段
 		db = db.Select(updateFields)
 	} else {
-		db = db.Select(m.GetTableFields(Category{}.TableName()))
+		db = db.Select(m.GetTableFields(TableCategory))
 	}
 
 	err = db.Where("id = ?", category.Id).Updates(category).Error
@@ -162,24 +158,11 @@ func (m *DBModel) UpdateCategory(category *Category, updateFields ...string) (er
 	return
 }
 
-// GetCategory 根据id获取Category
-func (m *DBModel) GetCategory(id interface{}, fields ...string) (category Category, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(Category{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&category).Error
-	return
-}
-
 // GetCategoryByParentIdTitle(parentId int, title string, fields ...string) 根据唯一索引获取Category
 func (m *DBModel) GetCategoryByParentIdTitle(parentId int64, title string, typ int, fields ...string) (category Category, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Category{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableCategory, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -194,40 +177,12 @@ func (m *DBModel) GetCategoryByParentIdTitle(parentId int64, title string, typ i
 	return
 }
 
-type OptionGetCategoryList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []interface{}             // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-}
-
 // GetCategoryList 获取Category列表
-func (m *DBModel) GetCategoryList(opt *OptionGetCategoryList) (categoryList []Category, total int64, err error) {
-	db := m.db.Model(&Category{})
-	tableName := Category{}.TableName()
-
-	db = m.generateQueryIn(db, tableName, opt.QueryIn)
-	db = m.generateQueryLike(db, tableName, opt.QueryLike)
-
-	if len(opt.Ids) > 0 {
-		db = db.Where("id in (?)", opt.Ids)
-	}
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetCategoryList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableName, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
+func (m *DBModel) GetCategoryList(opt *OptionGetList) (categoryList []Category, total int64, err error) {
+	db, total, err := m.queryCond(TableCategory, &Category{}, opt)
+	if err != nil {
+		m.logger.Error("err:", zap.Error(err))
+		return nil, total, err
 	}
 
 	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
@@ -258,19 +213,7 @@ func (m *DBModel) DeleteCategory(ids []int64) (err error) {
 		}
 	}
 
-	err = m.db.Where("id in (?) and doc_count = ?", ids, 0).Delete(&Category{}).Error
-	if err != nil {
-		m.logger.Error("DeleteCategory", zap.Error(err))
-	}
-	return
-}
-
-func (m *DBModel) CountCategory() (count int64, err error) {
-	err = m.db.Model(&Category{}).Count(&count).Error
-	if err != nil {
-		m.logger.Error("CountCategory", zap.Error(err))
-	}
-	return
+	return m.db.Where("id in (?) and doc_count = ?", ids, 0).Delete(&Category{}).Error
 }
 
 // 查询指定分类ID的所有父级分类ID
@@ -286,11 +229,5 @@ func (m *DBModel) GetCategoryParentIds(id int64) (ids []int64) {
 		ids = append(ids, category.ParentId)
 		ids = append(ids, m.GetCategoryParentIds(category.ParentId)...)
 	}
-	return
-}
-
-// 是否已存在相同分类
-func (m *DBModel) IsExistSaveCategory(typ int, title string, parentId int64) (err error) {
-
 	return
 }

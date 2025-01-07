@@ -53,19 +53,17 @@ func TestGenData(t *testing.T) {
 	}()
 
 	var (
-		permissions         []Permission
-		languages           []Language
-		permissionTableName = Permission{}.TableName()
-		languageTableName   = Language{}.TableName()
+		permissions []Permission
+		languages   []Language
 	)
 
-	err = db.Table(permissionTableName).Find(&permissions).Error
+	err = db.Table(TablePermission).Find(&permissions).Error
 	if err != nil {
 		t.Errorf("生成 data.go 文件失败： %s", err.Error())
 		return
 	}
 
-	err = db.Table(languageTableName).Find(&languages).Error
+	err = db.Table(TableLanguage).Find(&languages).Error
 	if err != nil {
 		t.Errorf("生成 data.go 文件失败： %s", err.Error())
 		return

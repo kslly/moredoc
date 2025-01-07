@@ -15,10 +15,6 @@ type ArticleCategory struct {
 	UpdatedAt  *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (ArticleCategory) TableName() string {
-	return tablePrefix + "article_category"
-}
-
 func (m *DBModel) GetArticleCategories(articleId ...int64) (categories []ArticleCategory, err error) {
 	if len(articleId) == 0 {
 		return

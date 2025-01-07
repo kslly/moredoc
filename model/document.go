@@ -71,10 +71,6 @@ type Document struct {
 	Language      string          `form:"language" json:"language,omitempty" gorm:"column:language;type:varchar(16);size:16;comment:语言;index:idx_language;"`
 }
 
-func (Document) TableName() string {
-	return tablePrefix + "document"
-}
-
 // UpdateDocument 更新Document，如果需要更新指定字段，则请指定updateFields参数
 func (m *DBModel) UpdateDocument(document *Document, categoryId []int64, updateFields ...string) (err error) {
 	sess := m.db.Begin()
@@ -94,7 +90,7 @@ func (m *DBModel) UpdateDocument(document *Document, categoryId []int64, updateF
 		modelCategory         = &Category{}
 	)
 
-	sess.Table(modelDocumentCategory.TableName()).Select("category_id").Where("document_id = ?", document.Id).Find(&oldDocCategories)
+	sess.Table(TableDocumentCategory).Select("category_id").Where("document_id = ?", document.Id).Find(&oldDocCategories)
 	for _, cate := range oldDocCategories {
 		oldDocCategoryIds = append(oldDocCategoryIds, cate.CategoryId)
 	}
@@ -136,39 +132,19 @@ func (m *DBModel) UpdateDocument(document *Document, categoryId []int64, updateF
 		}
 	}
 
-	updateFields = m.FilterValidFields(Document{}.TableName(), updateFields...)
+	updateFields = m.FilterValidFields(TableDocument, updateFields...)
 	if len(updateFields) > 0 { // 更新指定字段
 		sess = sess.Select(updateFields)
 	} else {
-		sess = sess.Select(m.GetTableFields(document.TableName())).Omit("deleted_at", "deleted_user_id")
+		sess = sess.Select(m.GetTableFields(TableDocument)).Omit("deleted_at", "deleted_user_id")
 	}
 
-	err = sess.Where("id = ?", document.Id).Updates(document).Error
-	if err != nil {
-		m.logger.Error("UpdateDocument", zap.Error(err))
-		return
-	}
-
-	return
+	return sess.Where("id = ?", document.Id).Updates(document).Error
 }
 
 func (m *DBModel) SetDocumentReconvert() (err error) {
-	err = m.db.Model(&Document{}).
-		Where("status = ?", DocumentStatusFailed).
+	return m.db.Model(&Document{}).Where("status = ?", DocumentStatusFailed).
 		Update("status", DocumentStatusPending).Error
-	if err != nil {
-		m.logger.Error("SetDocumentReconvert", zap.Error(err))
-	}
-	return
-}
-
-func (m *DBModel) UpdateDocumentField(id int64, fieldValue map[string]interface{}) (err error) {
-	err = m.db.Model(&Document{}).Where("id = ?", id).Updates(fieldValue).Error
-	if err != nil {
-		m.logger.Error("UpdateDocumentField", zap.Error(err))
-		return
-	}
-	return
 }
 
 // GetDocument 根据id获取Document
@@ -181,99 +157,12 @@ func (m *DBModel) GetDocument(idOrUUID interface{}, fields ...string) (document 
 		db = db.Where("uuid = ?", idOrUUID)
 	}
 
-	fields = m.FilterValidFields(Document{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableDocument, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
 
 	err = db.First(&document).Error
-	return
-}
-
-type OptionGetDocumentList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []interface{}             // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-	IsRecycle    bool // 是否是回收站模式查询
-	IsRecommend  []bool
-	FeeType      string // 费用类型：free免费，charge收费
-}
-
-// GetDocumentList 获取Document列表
-func (m *DBModel) GetDocumentList(opt *OptionGetDocumentList) (documentList []Document, total int64, err error) {
-	tableDocument := Document{}.TableName() + " d"
-	db := m.db.Unscoped().Table(tableDocument)
-	if opt.IsRecycle {
-		// 回收站模式，只根据删除的倒序排序
-		opt.Sort = []string{"d.deleted_at desc"}
-		db = db.Where("d.deleted_at IS NOT NULL")
-	} else {
-		db = db.Where("d.deleted_at IS NULL")
-	}
-
-	m.logger.Debug("GetDocumentList", zap.Any("opt", opt))
-
-	db = m.generateQueryIn(db, tableDocument, opt.QueryIn)
-	db = m.generateQueryLike(db, tableDocument, opt.QueryLike)
-	db = m.generateQueryRange(db, tableDocument, opt.QueryRange)
-	if len(opt.Ids) > 0 {
-		db = db.Where("d.id in (?)", opt.Ids)
-	}
-
-	if categoryIds, ok := opt.QueryIn["category_id"]; ok && len(categoryIds) > 0 {
-		tableCategory := DocumentCategory{}.TableName()
-		db = db.Joins("left join "+tableCategory+" dc on dc.document_id = d.id").Where("dc.category_id in (?)", categoryIds)
-	}
-
-	if l := len(opt.IsRecommend); l == 1 {
-		if opt.IsRecommend[0] {
-			db = db.Where("d.`recommend_at` IS NOT NULL")
-		} else {
-			db = db.Where("d.`recommend_at` IS NULL")
-		}
-	}
-
-	if opt.FeeType != "" {
-		switch opt.FeeType {
-		case "free":
-			db = db.Where("d.`price` = ?", 0)
-		case "charge":
-			db = db.Where("d.`price` > ?", 0)
-		}
-	}
-
-	if opt.WithCount {
-		err = db.Group("d.id").Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetDocumentList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableDocument, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
-	} else {
-		db = db.Select(m.GetTableFields(tableDocument))
-	}
-
-	if len(opt.Sort) > 0 {
-		db = m.generateQuerySort(db, tableDocument, opt.Sort)
-	} else {
-		db = db.Order("d.id desc")
-	}
-
-	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
-	err = db.Group("d.id").Find(&documentList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDocumentList", zap.Error(err))
-	}
 	return
 }
 
@@ -457,12 +346,7 @@ func (m *DBModel) ClearRecycleDocument() (err error) {
 		ids = append(ids, doc.Id)
 	}
 
-	err = m.DeleteDocument(ids, 0, true)
-	if err != nil {
-		m.logger.Error("DeleteDocument", zap.Error(err))
-	}
-
-	return
+	return m.DeleteDocument(ids, 0, true)
 }
 
 // 批量创建文档
@@ -570,17 +454,15 @@ func (m *DBModel) CreateDocuments(documents []Document, categoryIds []int64) (do
 // GetDocumentStatusConvertedByHash 根据文档hash，查询已转换了的文档状态
 func (m *DBModel) GetDocumentStatusConvertedByHash(hash []string) (hashMapDocuments map[string]Document) {
 	var (
-		tableDocument   = Document{}.TableName()
-		tableAttachment = Attachment{}.TableName()
-		attachMapIndex  = make(map[int64]int)
-		documentIds     []int64
-		docs            []Document
+		attachMapIndex = make(map[int64]int)
+		documentIds    []int64
+		docs           []Document
 	)
 
 	hashMapDocuments = make(map[string]Document)
 	sql := fmt.Sprintf(
 		"select a.hash,a.type_id from %s a left join %s d on a.type_id = d.id where a.hash in ? and d.status = ? group by a.hash",
-		tableAttachment, tableDocument,
+		TableAttachment, TableDocument,
 	)
 
 	var attachemnts []Attachment
@@ -653,7 +535,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 			m.logger.Info("ConvertDocument", zap.Bool("EnableConvertRepeatedDocument", cfg.EnableConvertRepeatedDocument), zap.String("hash", attachment.Hash), zap.Any("hashMapDocs", hashMapDocs))
 			// 已有文档转换成功，将hash相同的文档相关数据迁移到当前文档
 			sql := " UPDATE `%s` SET `description`= ? , `enable_gzip` = ?, `width` = ?, `height`= ?, `preview`= ?, `pages` = ?, `status` = ? WHERE status in ? and id in (select type_id from `%s` where `hash` = ? and `type` = ?)"
-			sql = fmt.Sprintf(sql, Document{}.TableName(), Attachment{}.TableName())
+			sql = fmt.Sprintf(sql, TableDocument, TableAttachment)
 			for hash, doc := range hashMapDocs {
 				if document.Description != "" {
 					doc.Description = document.Description
@@ -770,7 +652,8 @@ func (m *DBModel) ConvertDocument() (err error) {
 	document.Status = DocumentStatusConverted
 	document.EnableGZIP = cfg.EnableGZIP
 	document.PreviewExt = strings.TrimPrefix(ext, ".gzip")
-	err = m.db.Select("description", "cover", "width", "height", "preview", "pages", "status", "enable_gzip", "preview_ext").Where("id = ?", document.Id).Updates(document).Error
+	err = m.db.Select("description", "cover", "width", "height", "preview", "pages", "status",
+		"enable_gzip", "preview_ext").Where("id = ?", document.Id).Updates(document).Error
 	if err != nil {
 		m.SetDocumentStatus([]int64{document.Id}, DocumentStatusFailed)
 		m.logger.Error("ConvertDocument", zap.Error(err))
@@ -778,12 +661,12 @@ func (m *DBModel) ConvertDocument() (err error) {
 	return
 }
 
+func (m *DBModel) UpdateDocumentField(id int64, fieldValue map[string]interface{}) error {
+	return m.db.Model(&Document{}).Where("id = ?", id).Updates(fieldValue).Error
+}
+
 func (m *DBModel) SetDocumentStatus(documentIds []int64, status int) (err error) {
-	err = m.db.Model(&Document{}).Where("id in (?)", documentIds).Update("status", status).Error
-	if err != nil {
-		m.logger.Error("SetDocumentStatus", zap.Error(err))
-	}
-	return
+	return m.db.Model(&Document{}).Where("id in (?)", documentIds).Update("status", status).Error
 }
 
 // 设置文章推荐状态
@@ -799,18 +682,6 @@ func (m *DBModel) SetDocumentRecommend(documentIds []int64, typ int32) (err erro
 	}
 	if err != nil {
 		m.logger.Error("SetDocumentRecommend", zap.Error(err))
-	}
-	return
-}
-
-func (m *DBModel) CountDocument(status ...int) (count int64, err error) {
-	db := m.db.Model(&Document{})
-	if len(status) > 0 {
-		db = db.Where("status in (?)", status)
-	}
-	err = db.Count(&count).Error
-	if err != nil {
-		m.logger.Error("CountDocument", zap.Error(err))
 	}
 	return
 }
@@ -868,12 +739,8 @@ func (m *DBModel) SetDocumentsCategory(documentId, categoryId []int64) (err erro
 	return
 }
 
-func (m *DBModel) SetDocumentsLanguage(documentId []int64, language string) (err error) {
-	err = m.db.Model(&Document{}).Where("id in (?)", documentId).Update("language", language).Error
-	if err != nil {
-		m.logger.Error("SetDocumentsLanguage", zap.Error(err))
-	}
-	return
+func (m *DBModel) SetDocumentsLanguage(documentId []int64, language string) error {
+	return m.db.Model(&Document{}).Where("id in (?)", documentId).Update("language", language).Error
 }
 
 func (m *DBModel) GetDefaultDocumentStatus(userId int64) (status int) {
@@ -884,8 +751,8 @@ func (m *DBModel) GetDefaultDocumentStatus(userId int64) (status int) {
 
 	var group Group
 
-	m.db.Select("g.id", "min(g.enable_document_review) as enable_document_review").Table(Group{}.TableName()+" g").Joins(
-		"left join "+UserGroup{}.TableName()+" ug on g.id=ug.group_id",
+	m.db.Select("g.id", "min(g.enable_document_review) as enable_document_review").Table(TableGroup+" g").Joins(
+		"left join "+TableUserGroup+" ug on g.id=ug.group_id",
 	).Where("ug.user_id = ?", userId).Find(&group)
 
 	m.logger.Debug("GetDefaultDocumentStatus", zap.Any("group", group))

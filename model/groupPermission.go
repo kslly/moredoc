@@ -14,10 +14,6 @@ type GroupPermission struct {
 	UpdatedAt    *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (GroupPermission) TableName() string {
-	return tablePrefix + "group_permission"
-}
-
 // GetGroupPermissinsByGroupId 根据用户组ID获取用户组权限
 func (m *DBModel) GetGroupPermissinsByGroupId(groupId int64) (groupPermissions []*GroupPermission, err error) {
 	err = m.db.Where("group_id = ?", groupId).Find(&groupPermissions).Error

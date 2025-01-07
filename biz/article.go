@@ -301,7 +301,7 @@ func (s *ArticleAPIService) ListArticle(ctx context.Context, req *pb.ListArticle
 	}
 
 	if len(userIds) > 0 {
-		users, _, _ := s.dbModel.GetUserList(&model.OptionGetUserList{
+		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
 			QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(userIds)},
 			SelectFields: []string{"id", "username", "avatar"},
 		})

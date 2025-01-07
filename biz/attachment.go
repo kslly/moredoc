@@ -69,13 +69,12 @@ func (s *AttachmentAPIService) UpdateAttachment(ctx context.Context, req *pb.Att
 		return nil, err
 	}
 
-	updateFields := []string{"name", "enable", "description"}
-	err = s.dbModel.UpdateAttachment(&model.Attachment{
+	err = s.dbModel.UpdateByFields(&model.Attachment{
 		Id:          req.Id,
 		Name:        req.Name,
 		Description: req.Description,
 		Enable:      req.Enable,
-	}, updateFields...)
+	}, model.TableAttachment, req.Id, "name", "enable", "description")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -89,7 +88,7 @@ func (s *AttachmentAPIService) DeleteAttachment(ctx context.Context, req *pb.Del
 		return nil, err
 	}
 
-	err = s.dbModel.DeleteAttachment(req.Id)
+	err = s.dbModel.DeleteByIds(req.Id, &model.Attachment{})
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -121,7 +120,7 @@ func (s *AttachmentAPIService) ListAttachment(ctx context.Context, req *pb.ListA
 		return nil, err
 	}
 
-	opt := &model.OptionGetAttachmentList{
+	opt := &model.OptionGetList{
 		Page:      int(req.Page),
 		Size:      int(req.Size_),
 		WithCount: true,
@@ -167,7 +166,7 @@ func (s *AttachmentAPIService) ListAttachment(ctx context.Context, req *pb.ListA
 	}
 
 	if size := len(userIds); size > 0 {
-		users, _, _ := s.dbModel.GetUserList(&model.OptionGetUserList{Ids: userIds, Page: 1, Size: size, SelectFields: []string{"id", "username"}})
+		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{Ids: userIds, Page: 1, Size: size, SelectFields: []string{"id", "username"}})
 		s.logger.Debug("GetUserList", zap.Any("users", users))
 		for _, user := range users {
 			if indexes, ok := userIdIndexMap[user.Id]; ok {
@@ -224,7 +223,7 @@ func (s *AttachmentAPIService) UploadDocument(ctx *gin.Context) {
 	attachment.UserId = userClaims.UserId
 	attachment.Type = model.AttachmentTypeDocument
 
-	err = s.dbModel.CreateAttachment(attachment)
+	err = s.dbModel.Create(attachment)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, ginResponse{Code: http.StatusInternalServerError, Message: err.Error(), Error: err.Error()})
 		return
@@ -331,7 +330,7 @@ func (s *AttachmentAPIService) UploadArticle(ctx *gin.Context) {
 	attachment.UserId = userCliams.UserId
 	attachment.Type = model.AttachmentTypeArticle
 
-	err = s.dbModel.CreateAttachment(attachment)
+	err = s.dbModel.Create(attachment)
 	if err != nil {
 		s.logger.Error("CreateAttachments", zap.Error(err))
 		ctx.JSON(http.StatusOK, map[string]interface{}{"errno": 1, "msg": err.Error()})
@@ -401,7 +400,8 @@ func (s *AttachmentAPIService) uploadImage(ctx *gin.Context, attachmentType int)
 	if attachmentType == model.AttachmentTypeAvatar {
 		attachment.TypeId = userClaims.UserId
 		// 更新用户头像信息
-		err = s.dbModel.UpdateUser(&model.User{Id: userClaims.UserId, Avatar: attachment.Path}, "avatar")
+		err = s.dbModel.UpdateByFields(&model.User{Id: userClaims.UserId, Avatar: attachment.Path},
+			model.TableUser, userClaims.UserId, "avatar")
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, ginResponse{Code: http.StatusInternalServerError, Message: err.Error(), Error: err.Error()})
 		}
@@ -410,7 +410,7 @@ func (s *AttachmentAPIService) uploadImage(ctx *gin.Context, attachmentType int)
 	}
 
 	// 保存附件信息
-	err = s.dbModel.CreateAttachment(attachment)
+	err = s.dbModel.Create(attachment)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, ginResponse{Code: http.StatusInternalServerError, Message: err.Error(), Error: err.Error()})
 		return

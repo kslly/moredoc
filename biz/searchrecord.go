@@ -44,7 +44,7 @@ func (s *SearchRecordAPIService) ListSearchRecord(ctx context.Context, req *pb.L
 		return nil, err
 	}
 
-	opt := &model.OptionGetSearchRecordList{
+	opt := &model.OptionGetList{
 		Size:      int(req.Size_),
 		Page:      int(req.Page),
 		WithCount: true,
@@ -94,7 +94,7 @@ func (s *SearchRecordAPIService) ListSearchRecord(ctx context.Context, req *pb.L
 	}
 
 	if len(userIds) > 0 {
-		users, _, _ := s.dbModel.GetUserList(&model.OptionGetUserList{
+		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
 			QueryIn: map[string][]interface{}{
 				"id": userIds,
 			},

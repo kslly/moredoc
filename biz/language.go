@@ -76,7 +76,7 @@ func (s *LanguageAPIService) UpdateLanguage(ctx context.Context, req *pb.Languag
 func (s *LanguageAPIService) ListLanguage(ctx context.Context, req *pb.ListLanguageRequest) (*pb.ListLanguageReply, error) {
 	// 未登录用户，智能查看启用的语言
 	userClaims, _ := s.checkPermission(ctx)
-	opt := &model.OptionGetLanguageList{
+	opt := &model.OptionGetList{
 		WithCount:    true,
 		QueryIn:      map[string][]interface{}{},
 		SelectFields: req.Field,

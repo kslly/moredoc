@@ -102,7 +102,7 @@ func (s *FavoriteAPIService) ListFavorite(ctx context.Context, req *pb.ListFavor
 		return nil, err
 	}
 
-	opt := &model.OptionGetFavoriteList{
+	opt := &model.OptionGetList{
 		Page:      int(req.Page),
 		Size:      int(req.Size_),
 		WithCount: true,

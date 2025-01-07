@@ -66,7 +66,7 @@ func (s *ReportAPIService) UpdateReport(ctx context.Context, req *pb.Report) (*e
 
 	report := &model.Report{}
 	util.CopyStruct(req, report)
-	err = s.dbModel.UpdateReport(report, "status", "remark")
+	err = s.dbModel.UpdateByFields(report, model.TableReport, report.Id, "status", "remark")
 	if err != nil {
 		return nil, status.Error(codes.Internal, "更新举报失败")
 	}
@@ -80,7 +80,7 @@ func (s *ReportAPIService) DeleteReport(ctx context.Context, req *pb.DeleteRepor
 		return nil, err
 	}
 
-	err = s.dbModel.DeleteReport(req.Id)
+	err = s.dbModel.DeleteByIds(req.Id, &model.Report{})
 	if err != nil {
 		return nil, status.Error(codes.Internal, "删除举报失败")
 	}
@@ -94,7 +94,7 @@ func (s *ReportAPIService) ListReport(ctx context.Context, req *pb.ListReportReq
 		return nil, err
 	}
 
-	opt := &model.OptionGetReportList{
+	opt := &model.OptionGetList{
 		WithCount: true,
 		Page:      int(req.Page),
 		Size:      int(req.Size_),

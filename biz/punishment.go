@@ -59,7 +59,7 @@ func (s *PunishmentAPIService) CreatePunishment(ctx context.Context, req *pb.Cre
 			}
 			s.logger.Debug("CreatePunishment", zap.Any("punishment", punishment), zap.Any("req", req))
 			punishment.Operators = s.dbModel.MakePunishmentOperators(userClaims.UserId, typ)
-			err = s.dbModel.CreatePunishment(punishment)
+			err = s.dbModel.Create(punishment)
 			if err != nil {
 				s.logger.Error("CreatePunishment", zap.Error(err))
 				return nil, status.Errorf(codes.Internal, err.Error())
@@ -88,7 +88,7 @@ func (s *PunishmentAPIService) UpdatePunishment(ctx context.Context, req *pb.Pun
 		punishment.Operators = s.dbModel.MakePunishmentOperators(userClaims.UserId, req.Type, existPunishment.Operators)
 	}
 
-	err = s.dbModel.UpdatePunishment(punishment)
+	err = s.dbModel.UpdateByFields(punishment, model.TablePunishment, punishment.Id)
 	if err != nil {
 		s.logger.Error("UpdatePunishment", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
@@ -131,7 +131,7 @@ func (s *PunishmentAPIService) ListPunishment(ctx context.Context, req *pb.ListP
 		return nil, err
 	}
 
-	opt := &model.OptionGetPunishmentList{
+	opt := &model.OptionGetList{
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
 		WithCount:    true,
@@ -189,7 +189,7 @@ func (s *PunishmentAPIService) ListPunishment(ctx context.Context, req *pb.ListP
 			userIdMapIndexes[v.UserId] = append(userIdMapIndexes[v.UserId], i)
 		}
 
-		users, _, _ := s.dbModel.GetUserList(&model.OptionGetUserList{
+		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
 			Ids:       userIds,
 			WithCount: false,
 			SelectFields: []string{
@@ -220,7 +220,7 @@ func (s *PunishmentAPIService) CancelPunishment(ctx context.Context, req *pb.Can
 
 	s.logger.Debug("CancelPunishment", zap.Any("req", req))
 
-	data, _, err := s.dbModel.GetPunishmentList(&model.OptionGetPunishmentList{
+	data, _, err := s.dbModel.GetPunishmentList(&model.OptionGetList{
 		Ids: req.Id,
 	})
 
@@ -232,7 +232,7 @@ func (s *PunishmentAPIService) CancelPunishment(ctx context.Context, req *pb.Can
 	for _, item := range data {
 		item.Enable = false
 		item.Operators = s.dbModel.MakePunishmentOperators(userCliams.UserId, 0, item.Operators)
-		err = s.dbModel.UpdatePunishment(&item, "enable", "operators")
+		err = s.dbModel.UpdateByFields(&item, model.TablePunishment, item.Id, "enable", "operators")
 		if err != nil {
 			s.logger.Error("UpdatePunishment", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, err.Error())

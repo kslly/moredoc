@@ -11,17 +11,14 @@ import (
 // 1. 用户是否被禁用或被处罚禁止上传文档
 // 2. 用户所在的用户组是否允许上传文档
 func (m *DBModel) CanIAccessUploadDocument(userId int64) (yes bool) {
-	if inPunishing, _ := m.isInPunishing(userId, []int{PunishmentTypeDisabled, PunishmentTypeUploadLimited}); inPunishing {
+	inPunishing, _ := m.isInPunishing(userId, []int{PunishmentTypeDisabled, PunishmentTypeUploadLimited})
+	if inPunishing {
 		return false
 	}
 
-	var (
-		tableGroup     = Group{}.TableName()
-		tableUserGroup = UserGroup{}.TableName()
-		group          Group
-	)
-	err := m.db.Select("g.id").Table(tableGroup+" g").Joins(
-		"left join "+tableUserGroup+" ug on g.id=ug.group_id",
+	var group Group
+	err := m.db.Select("g.id").Table(TableGroup+" g").Joins(
+		"left join "+TableUserGroup+" ug on g.id=ug.group_id",
 	).Where("ug.user_id = ? and g.enable_upload = ?", userId, true).Find(&group).Error
 	if err != nil {
 		m.logger.Error("CanIUploadDocument", zap.Error(err))
@@ -38,13 +35,9 @@ func (m *DBModel) CanIAccessPublishArticle(userId int64) (yes bool) {
 		return false
 	}
 
-	var (
-		tableGroup     = Group{}.TableName()
-		tableUserGroup = UserGroup{}.TableName()
-		group          Group
-	)
-	err := m.db.Select("g.id").Table(tableGroup+" g").Joins(
-		"left join "+tableUserGroup+" ug on g.id=ug.group_id",
+	var group Group
+	err := m.db.Select("g.id").Table(TableGroup+" g").Joins(
+		"left join "+TableUserGroup+" ug on g.id=ug.group_id",
 	).Where("ug.user_id = ? and g.enable_article = ?", userId, true).Find(&group).Error
 	if err != nil {
 		m.logger.Error("CanIAccessPublishArticle", zap.Error(err))
@@ -91,15 +84,16 @@ func (m *DBModel) CanIAccessComment(userId int64) (yes bool, err error) {
 	}
 
 	var (
-		group     Group
-		userGroup UserGroup
-		comment   Comment
+		group   Group
+		comment Comment
 	)
 
 	// 查询用户组。只要用户组中有一个允许评论，就允许评论，以及用户组，有一个评论不需要审核，就不需要审核
-	m.db.Select("g.id", "max(g.enable_comment) as enable_comment", "min(g.enable_comment_approval) as enable_comment_approval").Table(Group{}.TableName()+" g").Joins(
-		"left join "+userGroup.TableName()+" ug on g.id=ug.group_id",
-	).Where("ug.user_id = ?", userId).Find(&group)
+	m.db.Select("g.id", "max(g.enable_comment) as enable_comment",
+		"min(g.enable_comment_approval) as enable_comment_approval").
+		Table(TableGroup+" g").
+		Joins("left join "+TableUserGroup+" ug on g.id=ug.group_id").
+		Where("ug.user_id = ?", userId).Find(&group)
 
 	m.logger.Debug("CanIPublishComment", zap.Any("group", group))
 

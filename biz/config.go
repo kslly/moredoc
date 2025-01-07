@@ -95,7 +95,7 @@ func (s *ConfigAPIService) ListConfig(ctx context.Context, req *pb.ListConfigReq
 		return nil, err
 	}
 
-	opt := &model.OptionGetConfigList{
+	opt := &model.OptionGetList{
 		QueryIn: map[string][]interface{}{
 			"category": util.Slice2Interface(req.Category),
 		},
@@ -167,7 +167,7 @@ func (s *ConfigAPIService) GetSettings(ctx context.Context, req *emptypb.Empty) 
 		s.logger.Error("util.CopyStruct", zap.Any("display", display), zap.Any("res.Display", res.Display), zap.Error(err))
 	}
 
-	langs, _, _ := s.dbModel.GetLanguageList(&model.OptionGetLanguageList{
+	langs, _, _ := s.dbModel.GetLanguageList(&model.OptionGetList{
 		WithCount:    false,
 		SelectFields: []string{"id", "language", "code"},
 		QueryIn: map[string][]interface{}{
@@ -180,30 +180,27 @@ func (s *ConfigAPIService) GetSettings(ctx context.Context, req *emptypb.Empty) 
 
 func (s *ConfigAPIService) GetStats(ctx context.Context, req *emptypb.Empty) (res *pb.Stats, err error) {
 	res = &pb.Stats{
-		UserCount:       0,
-		DocumentCount:   0,
+		UserCount:       s.dbModel.Count(&model.User{}),
+		DocumentCount:   s.dbModel.Count(&model.Document{}),
 		CategoryCount:   0,
-		ArticleCount:    0,
+		ArticleCount:    s.dbModel.Count(&model.Article{}),
 		CommentCount:    0,
 		BannerCount:     0,
 		FriendlinkCount: 0,
-		Os:              runtime.GOOS,
+		Os:              util.GetOSRelease(),
 		Version:         util.Version,
 		Hash:            util.Hash,
 		BuildAt:         util.BuildAt,
 	}
-	res.Os, _ = util.GetOSRelease()
-	res.UserCount, _ = s.dbModel.CountUser()
+
 	res.UserCount += s.dbModel.GetConfigOfDisplay(model.ConfigDisplayVirtualRegisterCount).VirtualRegisterCount
-	res.DocumentCount, _ = s.dbModel.CountDocument()
-	res.ArticleCount, _ = s.dbModel.CountArticle()
 	_, errPermission := s.checkPermission(ctx)
 	if errPermission == nil {
-		res.CategoryCount, _ = s.dbModel.CountCategory()
-		res.CommentCount, _ = s.dbModel.CountComment()
-		res.BannerCount, _ = s.dbModel.CountBanner()
-		res.FriendlinkCount, _ = s.dbModel.CountFriendlink()
-		res.ReportCount, _ = s.dbModel.CountReport()
+		res.CategoryCount = s.dbModel.Count(&model.Category{})
+		res.CommentCount = s.dbModel.Count(&model.Comment{})
+		res.BannerCount = s.dbModel.Count(&model.Banner{})
+		res.FriendlinkCount = s.dbModel.Count(&model.Friendlink{})
+		res.ReportCount = s.dbModel.Count(&model.Report{})
 	}
 	return
 }

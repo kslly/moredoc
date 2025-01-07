@@ -17,10 +17,6 @@ type DocumentScore struct {
 	UpdatedAt  *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 }
 
-func (DocumentScore) TableName() string {
-	return tablePrefix + "document_score"
-}
-
 // CreateDocumentScore 创建DocumentScore
 func (m *DBModel) CreateDocumentScore(documentScore *DocumentScore) (err error) {
 	doc, _ := m.GetDocument(documentScore.DocumentId, "id", "score_count", "score")

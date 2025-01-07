@@ -114,7 +114,8 @@ func (s *CategoryAPIService) GetCategory(ctx context.Context, req *pb.GetCategor
 		return nil, err
 	}
 
-	cate, err := s.dbModel.GetCategory(req.Id)
+	cate := &model.Category{}
+	err = s.dbModel.GetByID(req.Id, cate)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -126,7 +127,7 @@ func (s *CategoryAPIService) GetCategory(ctx context.Context, req *pb.GetCategor
 }
 
 func (s *CategoryAPIService) ListCategory(ctx context.Context, req *pb.ListCategoryRequest) (*pb.ListCategoryReply, error) {
-	opt := &model.OptionGetCategoryList{
+	opt := &model.OptionGetList{
 		WithCount:    false,
 		QueryIn:      make(map[string][]interface{}),
 		SelectFields: req.Field,

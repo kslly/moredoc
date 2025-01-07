@@ -39,7 +39,7 @@ func (s *FriendlinkAPIService) CreateFriendlink(ctx context.Context, req *pb.Fri
 
 	friendlink := &model.Friendlink{}
 	util.CopyStruct(req, friendlink)
-	err = s.dbModel.CreateFriendlink(friendlink)
+	err = s.dbModel.Create(friendlink)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -62,7 +62,7 @@ func (s *FriendlinkAPIService) UpdateFriendlink(ctx context.Context, req *pb.Fri
 
 	friendlink := &model.Friendlink{}
 	util.CopyStruct(req, friendlink)
-	err = s.dbModel.UpdateFriendlink(friendlink)
+	err = s.dbModel.UpdateByFields(friendlink, model.TableFriendlink, int64(friendlink.Id))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -77,7 +77,7 @@ func (s *FriendlinkAPIService) DeleteFriendlink(ctx context.Context, req *pb.Del
 		return nil, err
 	}
 
-	err = s.dbModel.DeleteFriendlink(req.Id)
+	err = s.dbModel.DeleteByIds(req.Id, &model.Friendlink{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -91,8 +91,8 @@ func (s *FriendlinkAPIService) GetFriendlink(ctx context.Context, req *pb.GetFri
 	// if err != nil {
 	// 	return nil, err
 	// }
-
-	friendlink, err := s.dbModel.GetFriendlink(req.Id)
+	friendlink := &model.Friendlink{}
+	err := s.dbModel.GetByID(req.Id, friendlink)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
@@ -106,7 +106,7 @@ func (s *FriendlinkAPIService) GetFriendlink(ctx context.Context, req *pb.GetFri
 }
 
 func (s *FriendlinkAPIService) ListFriendlink(ctx context.Context, req *pb.ListFriendlinkRequest) (*pb.ListFriendlinkReply, error) {
-	opt := &model.OptionGetFriendlinkList{
+	opt := &model.OptionGetList{
 		WithCount:    true,
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
@@ -129,7 +129,7 @@ func (s *FriendlinkAPIService) ListFriendlink(ctx context.Context, req *pb.ListF
 		}
 	} else {
 		// 非管理员可查询的字段
-		opt.SelectFields = s.dbModel.GetFriendlinkPublicFields()
+		opt.SelectFields = []string{"id", "title", "link"}
 		opt.QueryIn = map[string][]interface{}{"enable": {true}}
 	}
 

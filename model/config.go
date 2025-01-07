@@ -74,36 +74,6 @@ type Config struct {
 	ColNum      int        `form:"col_num" json:"col_num,omitempty" gorm:"column:col_num;type:int(11);size:11;default:24;comment:占据的列数;"`
 }
 
-func (Config) TableName() string {
-	return tablePrefix + "config"
-}
-
-// CreateConfig 创建Config
-func (m *DBModel) CreateConfig(config *Config) (err error) {
-	err = m.db.Create(config).Error
-	if err != nil {
-		m.logger.Error("CreateConfig", zap.Error(err))
-		return
-	}
-	return
-}
-
-// UpdateConfig 更新Config，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdateConfig(config *Config, updateFields ...string) (err error) {
-	db := m.db.Model(config)
-
-	updateFields = m.FilterValidFields(Config{}.TableName(), updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	}
-
-	err = db.Where("id = ?", config.Id).Updates(config).Error
-	if err != nil {
-		m.logger.Error("UpdateConfig", zap.Error(err))
-	}
-	return
-}
-
 // UpdateConfigs 配置项批量更新
 func (m *DBModel) UpdateConfigs(configs []*Config, updateFields ...string) (err error) {
 	sess := m.db.Begin()
@@ -115,10 +85,9 @@ func (m *DBModel) UpdateConfigs(configs []*Config, updateFields ...string) (err 
 		}
 	}()
 
-	tableName := Config{}.TableName()
-	updateFields = m.FilterValidFields(tableName, updateFields...)
+	updateFields = m.FilterValidFields(TableConfig, updateFields...)
 	if len(updateFields) == 0 {
-		updateFields = m.GetTableFields(tableName)
+		updateFields = m.GetTableFields(TableConfig)
 	}
 
 	for _, config := range configs {
@@ -131,30 +100,16 @@ func (m *DBModel) UpdateConfigs(configs []*Config, updateFields ...string) (err 
 	return
 }
 
-// GetConfig 根据id获取Config
-func (m *DBModel) GetConfig(id interface{}, fields ...string) (config Config, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(Config{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&config).Error
-	return
-}
-
 // GetConfigByNameCategory(name string, category string, fields ...string) 根据唯一索引获取Config
 func (m *DBModel) GetConfigByNameCategory(name string, category string, fields ...string) (config Config, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(Config{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableConfig, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
 
 	db = db.Where("name = ?", name)
-
 	db = db.Where("category = ?", category)
 
 	err = db.First(&config).Error
@@ -165,27 +120,13 @@ func (m *DBModel) GetConfigByNameCategory(name string, category string, fields .
 	return
 }
 
-type OptionGetConfigList struct {
-	SelectFields []string                 // 查询字段
-	QueryIn      map[string][]interface{} // map[field][]{value1,value2,...}
-}
-
 // GetConfigList 获取Config列表
-func (m *DBModel) GetConfigList(opt *OptionGetConfigList) (configList []Config, err error) {
+func (m *DBModel) GetConfigList(opt *OptionGetList) (configList []Config, err error) {
 	db := m.db.Model(&Config{})
-	db = m.generateQueryIn(db, Config{}.TableName(), opt.QueryIn)
+	db = m.generateQueryIn(db, TableConfig, opt.QueryIn)
 	err = db.Order("sort asc").Find(&configList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		m.logger.Error("GetConfigList", zap.Error(err))
-	}
-	return
-}
-
-// DeleteConfig 删除数据
-func (m *DBModel) DeleteConfig(ids []interface{}) (err error) {
-	err = m.db.Where("id in (?)", ids).Delete(&Config{}).Error
-	if err != nil {
-		m.logger.Error("DeleteConfig", zap.Error(err))
 	}
 	return
 }
@@ -543,7 +484,8 @@ func (m *DBModel) GetConfigOfSSR(name ...string) (ssr ConfigSSR) {
 
 func (m *DBModel) GetConfigOfSSRByCache() (ssr ConfigSSR) {
 	ssrcfg := "cache/ssr.json"
-	if info, e := os.Stat(ssrcfg); e == nil && info.ModTime().Add(5*time.Second).After(time.Now()) {
+	info, e := os.Stat(ssrcfg)
+	if e == nil && info.ModTime().Add(5*time.Second).After(time.Now()) {
 		bytes, _ := os.ReadFile(ssrcfg)
 		json.Unmarshal(bytes, &ssr)
 	} else {
@@ -749,11 +691,7 @@ func (m *DBModel) IgnoreRelease(version string) (err error) {
 		return
 	}
 	cfg.Value = version
-	err = m.db.Save(&cfg).Error
-	if err != nil {
-		m.logger.Error("IgnoreRelease", zap.Error(err))
-	}
-	return
+	return m.db.Save(&cfg).Error
 }
 
 func (m *DBModel) SetReleaseSource(source string) (err error) {
@@ -762,11 +700,7 @@ func (m *DBModel) SetReleaseSource(source string) (err error) {
 		return
 	}
 	cfg.Value = source
-	err = m.db.Save(&cfg).Error
-	if err != nil {
-		m.logger.Error("SetReleaseSource", zap.Error(err))
-	}
-	return
+	return m.db.Save(&cfg).Error
 }
 
 func (m *DBModel) RefreshLatestRelease() (err error) {
@@ -995,7 +929,7 @@ func (m *DBModel) initConfig() (err error) {
 			}
 			continue
 		}
-		err = m.CreateConfig(&cfg)
+		err = m.Create(&cfg)
 		if err != nil {
 			m.logger.Error("initConfig", zap.Error(err))
 			return

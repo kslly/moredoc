@@ -25,7 +25,8 @@ func FixCover(cfg *conf.Config, logger *zap.Logger) {
 	size := 100
 	for {
 		var attachments []model.Attachment
-		err := dbModel.DB().Where("type = ?", model.AttachmentTypeDocument).Select("hash", "path").Group("hash").Offset((page - 1) * size).Limit(size).Order("id asc").Find(&attachments).Error
+		err := dbModel.DB().Where("type = ?", model.AttachmentTypeDocument).Select("hash", "path").Group("hash").
+			Offset((page - 1) * size).Limit(size).Order("id asc").Find(&attachments).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
 			lg.Error("查询附件失败", zap.Error(err))
 			break

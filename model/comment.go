@@ -33,10 +33,6 @@ type Comment struct {
 	Type         int32      `form:"type" json:"type,omitempty" gorm:"column:type;type:int(11);size:11;default:0;comment:评论类型，0表示文档评论，1表示文章评论;index:idx_type"` // 枚举见CategoryType
 }
 
-func (Comment) TableName() string {
-	return tablePrefix + "comment"
-}
-
 // CreateComment 创建Comment
 func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 	doc := &Document{}
@@ -197,86 +193,6 @@ func (m *DBModel) CreateArticleComment(comment *Comment) (err error) {
 	return
 }
 
-// UpdateComment 更新Comment，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdateComment(comment *Comment, updateFields ...string) (err error) {
-	db := m.db.Model(comment)
-	tableName := Comment{}.TableName()
-
-	updateFields = m.FilterValidFields(tableName, updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	} else { // 更新全部字段，包括零值字段
-		db = db.Select(m.GetTableFields(tableName))
-	}
-
-	err = db.Where("id = ?", comment.Id).Updates(comment).Error
-	if err != nil {
-		m.logger.Error("UpdateComment", zap.Error(err))
-	}
-	return
-}
-
-// GetComment 根据id获取Comment
-func (m *DBModel) GetComment(id interface{}, fields ...string) (comment Comment, err error) {
-	db := m.db
-
-	fields = m.FilterValidFields(Comment{}.TableName(), fields...)
-	if len(fields) > 0 {
-		db = db.Select(fields)
-	}
-
-	err = db.Where("id = ?", id).First(&comment).Error
-	return
-}
-
-type OptionGetCommentList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []interface{}             // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-}
-
-// GetCommentList 获取Comment列表
-func (m *DBModel) GetCommentList(opt *OptionGetCommentList) (commentList []Comment, total int64, err error) {
-	tableName := Comment{}.TableName()
-	db := m.db.Model(&Comment{})
-	db = m.generateQueryRange(db, tableName, opt.QueryRange)
-	db = m.generateQueryIn(db, tableName, opt.QueryIn)
-	db = m.generateQueryLike(db, tableName, opt.QueryLike)
-
-	if len(opt.Ids) > 0 {
-		db = db.Where("id in (?)", opt.Ids)
-	}
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetCommentList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(tableName, opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
-	}
-
-	db = m.generateQuerySort(db, tableName, opt.Sort)
-
-	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
-
-	err = db.Find(&commentList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetCommentList", zap.Error(err))
-	}
-	return
-}
-
 // DeleteComment 删除数据
 // 删除评论之后，对应文档的评论数量也要减少，对应的父级文档评论数量也要减少，用户评论数量也要减少
 func (m *DBModel) DeleteComment(ids []int64, limitUserId ...int64) (err error) {
@@ -341,34 +257,22 @@ func (m *DBModel) DeleteComment(ids []int64, limitUserId ...int64) (err error) {
 	return
 }
 
-func (m *DBModel) UpdateCommentStatus(ids []int64, status int32) (err error) {
-	err = m.db.Model(&Comment{}).Where("id in (?) and status != ?", ids, status).Update("status", status).Error
-	if err != nil {
-		m.logger.Error("UpdateCommentStatus", zap.Error(err))
-	}
-	return
+func (m *DBModel) UpdateCommentStatus(ids []int64, status int32) error {
+	return m.db.Model(&Comment{}).Where("id in (?) and status != ?", ids, status).Update("status", status).Error
 }
 
-func (m *DBModel) CountComment() (count int64, err error) {
-	err = m.db.Model(&Comment{}).Count(&count).Error
-	if err != nil {
-		m.logger.Error("CountComment", zap.Error(err))
-	}
-	return
-}
-
-func (m *DBModel) GetDefaultCommentStatus(userId int64) (status int) {
+func (m *DBModel) GetDefaultCommentStatus(userId int64) int {
 	// 默认待审核
-	status = CommentStatusPending
+	status := CommentStatusPending
 
 	var group Group
 	// 查询用户所在用户组，是否评论不需要审核
-	err := m.db.Select("g.id").Where("ug.user_id = ? and g.enable_comment_approval = ?", userId, false).Table(Group{}.TableName() + " g").Joins(
-		"left join " + UserGroup{}.TableName() + " ug on g.id=ug.group_id",
+	err := m.db.Select("g.id").Where("ug.user_id = ? and g.enable_comment_approval = ?", userId, false).Table(TableGroup + " g").Joins(
+		"left join " + TableUserGroup + " ug on g.id=ug.group_id",
 	).Find(&group).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		m.logger.Error("GetDefaultCommentStatus", zap.Error(err))
-		return
+		return status
 	}
 
 	m.logger.Debug("GetDefaultCommentStatus", zap.Any("group", group))
@@ -376,5 +280,5 @@ func (m *DBModel) GetDefaultCommentStatus(userId int64) (status int) {
 	if group.Id > 0 {
 		status = CommentStatusApproved
 	}
-	return
+	return status
 }

@@ -2,8 +2,6 @@ package model
 
 import (
 	"fmt"
-	"moredoc/util"
-	"strings"
 	"time"
 
 	"github.com/alexandrevicenzi/unchained"
@@ -50,17 +48,13 @@ type User struct {
 	LoginAt       *time.Time `form:"login_at" json:"login_at,omitempty" gorm:"column:login_at;type:datetime;comment:最后登录时间;"`
 	CreatedAt     *time.Time `form:"created_at" json:"created_at,omitempty" gorm:"column:created_at;type:datetime;comment:创建时间;"`
 	UpdatedAt     *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
-	// Status        int8       `form:"status" json:"status,omitempty" gorm:"column:status;type:tinyint(4);size:4;default:0;index:status;comment:用户状态，0表示正常，其他状态表示被惩罚;"`
-	Remark string `form:"remark" json:"remark,omitempty" gorm:"column:remark;type:varchar(255);size:255;comment:备注;"`
-}
-
-func (User) TableName() string {
-	return tablePrefix + "user"
+	Remark        string     `form:"remark" json:"remark,omitempty" gorm:"column:remark;type:varchar(255);size:255;comment:备注;"`
 }
 
 // GetUserPublicFields 获取用户公开字段
 func (m *DBModel) GetUserPublicFields() []string {
-	return []string{"id", "username", "avatar", "signature", "doc_count", "follow_count", "fans_count", "favorite_count", "comment_count", "credit_count", "article_count"}
+	return []string{"id", "username", "avatar", "signature", "doc_count", "follow_count", "fans_count",
+		"favorite_count", "comment_count", "credit_count", "article_count"}
 }
 
 // CreateUser 创建User
@@ -115,27 +109,7 @@ func (m *DBModel) UpdateUserPassword(id interface{}, newPassword string, tx ...*
 	if len(tx) > 0 {
 		sess = tx[0].Model(user)
 	}
-	err = sess.Where("id = ?", id).Update("password", newPassword).Error
-	if err != nil {
-		m.logger.Error("UpdateUserPassword", zap.Error(err))
-	}
-	return
-}
-
-// UpdateUser 更新User，如果需要更新指定字段，则请指定updateFields参数
-func (m *DBModel) UpdateUser(user *User, updateFields ...string) (err error) {
-	db := m.db.Model(user)
-
-	updateFields = m.FilterValidFields(User{}.TableName(), updateFields...)
-	if len(updateFields) > 0 { // 更新指定字段
-		db = db.Select(updateFields)
-	}
-
-	err = db.Where("id = ?", user.Id).Updates(user).Error
-	if err != nil {
-		m.logger.Error("UpdateUser", zap.Error(err))
-	}
-	return
+	return sess.Where("id = ?", id).Update("password", newPassword).Error
 }
 
 // GetUser 根据id获取User
@@ -145,7 +119,7 @@ func (m *DBModel) GetUser(id int64, fields ...string) (user User, err error) {
 	}
 
 	db := m.db
-	fields = m.FilterValidFields(User{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableUser, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -158,7 +132,7 @@ func (m *DBModel) GetUser(id int64, fields ...string) (user User, err error) {
 func (m *DBModel) GetUserByUsername(username string, fields ...string) (user User, err error) {
 	db := m.db
 
-	fields = m.FilterValidFields(User{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableUser, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -175,7 +149,7 @@ func (m *DBModel) GetUserByUsername(username string, fields ...string) (user Use
 
 func (m *DBModel) GetUserByEmail(email string, fields ...string) (user User, err error) {
 	db := m.db
-	fields = m.FilterValidFields(User{}.TableName(), fields...)
+	fields = m.FilterValidFields(TableUser, fields...)
 	if len(fields) > 0 {
 		db = db.Select(fields)
 	}
@@ -186,89 +160,6 @@ func (m *DBModel) GetUserByEmail(email string, fields ...string) (user User, err
 	if err != nil && err != gorm.ErrRecordNotFound {
 		m.logger.Error("GetUserByEmail", zap.Error(err))
 		return
-	}
-	return
-}
-
-type OptionGetUserList struct {
-	Page         int
-	Size         int
-	WithCount    bool                      // 是否返回总数
-	Ids          []int64                   // id列表
-	SelectFields []string                  // 查询字段
-	QueryRange   map[string][2]interface{} // map[field][]{min,max}
-	QueryIn      map[string][]interface{}  // map[field][]{value1,value2,...}
-	QueryLike    map[string][]interface{}  // map[field][]{value1,value2,...}
-	Sort         []string
-}
-
-// GetUserList 获取User列表
-func (m *DBModel) GetUserList(opt *OptionGetUserList) (userList []User, total int64, err error) {
-	db := m.db.Model(&User{})
-
-	for field, rangeValue := range opt.QueryRange {
-		fields := m.FilterValidFields(User{}.TableName(), field)
-		if len(fields) == 0 {
-			continue
-		}
-		if rangeValue[0] != nil {
-			db = db.Where(fmt.Sprintf("%s >= ?", field), rangeValue[0])
-		}
-		if rangeValue[1] != nil {
-			db = db.Where(fmt.Sprintf("%s <= ?", field), rangeValue[1])
-		}
-	}
-
-	for field, values := range opt.QueryIn {
-		if field == "group_id" {
-			db = db.Joins(fmt.Sprintf("left JOIN %s ug ON ug.user_id = %s.id", UserGroup{}.TableName(), User{}.TableName())).Where("ug.group_id in (?)", values)
-			continue
-		}
-		fields := m.FilterValidFields(User{}.TableName(), field)
-		if len(fields) == 0 {
-			continue
-		}
-		db = db.Where(fmt.Sprintf("%s in (?)", field), values)
-	}
-
-	db = m.generateQueryLike(db, User{}.TableName(), opt.QueryLike)
-
-	if len(opt.Ids) > 0 {
-		db = db.Where("id in (?)", opt.Ids)
-	}
-
-	if opt.WithCount {
-		err = db.Count(&total).Error
-		if err != nil {
-			m.logger.Error("GetUserList", zap.Error(err))
-			return
-		}
-	}
-
-	opt.SelectFields = m.FilterValidFields(User{}.TableName(), opt.SelectFields...)
-	if len(opt.SelectFields) > 0 {
-		db = db.Select(opt.SelectFields)
-	}
-
-	var sorts []string
-	if len(opt.Sort) > 0 {
-		db = m.generateQuerySort(db, User{}.TableName(), opt.Sort)
-	} else {
-		sorts = append(sorts, "id desc")
-	}
-
-	if len(sorts) > 0 {
-		db = db.Order(strings.Join(sorts, ","))
-	}
-
-	opt.Page = util.LimitMin(opt.Page, 1)
-	opt.Size = util.LimitRange(opt.Size, 10, 1000)
-
-	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
-
-	err = db.Find(&userList).Error
-	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetUserList", zap.Error(err))
 	}
 	return
 }
@@ -305,11 +196,7 @@ func (m *DBModel) initUser() (err error) {
 	// 初始化一个用户
 	user := &User{Username: "admin", Password: "mnt.ltd"}
 	var groupId int64 = 1 // ID==1的用户组为管理员组
-	err = m.CreateUser(user, groupId)
-	if err != nil {
-		m.logger.Error("initUser", zap.Error(err))
-	}
-	return
+	return m.CreateUser(user, groupId)
 }
 
 // GetUserPermissinsByUserId 根据用户ID获取用户权限
@@ -339,7 +226,7 @@ func (m *DBModel) GetUserPermissinsByUserId(userId int64) (permissions []*Permis
 			ug.user_id=?
 		group by p.id
 	`
-	sql = fmt.Sprintf(sql, Permission{}.TableName(), GroupPermission{}.TableName(), UserGroup{}.TableName())
+	sql = fmt.Sprintf(sql, TablePermission, TableGroupPermission, TableUserGroup)
 	err = m.db.Raw(sql, userId).Find(&permissions).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		m.logger.Error("GetUserPermissinsByUserId", zap.Error(err))
@@ -409,18 +296,5 @@ func (m *DBModel) SetUserGroupAndPassword(userId int64, groupId []int64, passwor
 		}
 	}
 
-	return
-}
-
-func (s *DBModel) CountUser(status ...int) (count int64, err error) {
-	db := s.db.Model(&User{})
-	if len(status) > 0 {
-		db = db.Where("status in (?)", status)
-	}
-	err = db.Count(&count).Error
-	if err != nil {
-		s.logger.Error("CountUser", zap.Error(err))
-		return
-	}
 	return
 }
