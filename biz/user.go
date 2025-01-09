@@ -11,6 +11,8 @@ import (
 	v1 "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"moredoc/util/validate"
 
@@ -36,12 +38,12 @@ const (
 type UserAPIService struct {
 	pb.UnimplementedUserAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 	auth    *auth.Auth
 }
 
-func NewUserAPIService(dbModel *model.DBModel, logger *zap.Logger, auth *auth.Auth) (service *UserAPIService) {
-	return &UserAPIService{dbModel: dbModel, logger: logger.Named("UserAPIService"), auth: auth}
+func NewUserAPIService(dbModel *model.DBModel, logger logger.Logger, auth *auth.Auth) (service *UserAPIService) {
+	return &UserAPIService{dbModel: dbModel, logger: logger, auth: auth}
 }
 
 func (s *UserAPIService) getValidFieldMap() map[string]string {
@@ -130,7 +132,7 @@ func (s *UserAPIService) Register(ctx context.Context, req *pb.RegisterAndLoginR
 	cfgScore := s.dbModel.GetConfigOfScore(model.ConfigScoreRegister, model.ConfigScoreCreditName)
 	user.CreditCount = int(cfgScore.Register)
 	if err = s.dbModel.CreateUser(user, group.Id); err != nil {
-		s.logger.Error("CreateUser", zap.Error(err))
+		s.logger.Errorf("CreateUser", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -160,71 +162,9 @@ func (s *UserAPIService) Register(ctx context.Context, req *pb.RegisterAndLoginR
 	return &pb.LoginReply{Token: token, User: pbUser}, nil
 }
 
-// Login 用户登录
-func (s *UserAPIService) Login(ctx context.Context, req *pb.RegisterAndLoginRequest) (*pb.LoginReply, error) {
-
-	errValidate := validate.ValidateStruct(req, s.getValidFieldMap())
-	if errValidate != nil {
-		return nil, status.Errorf(codes.InvalidArgument, errValidate.Error())
-	}
-
-	// 如果启用了验证码，则需要进行验证码验证
-	cfg := s.dbModel.GetConfigOfSecurity(model.ConfigSecurityEnableCaptchaLogin)
-	if cfg.EnableCaptchaLogin {
-		if req.CaptchaId == "" || req.Captcha == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "请输入验证码")
-		}
-		if !captcha.VerifyCaptcha(req.CaptchaId, req.Captcha, true) {
-			return nil, status.Errorf(codes.InvalidArgument, "验证码错误")
-		}
-	}
-
-	user, err := s.dbModel.GetUserByUsername(req.Username)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	if user.Id <= 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "用户名或密码错误")
-	}
-
-	if ok, err := unchained.CheckPassword(req.Password, user.Password); !ok || err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "用户名或密码错误")
-	}
-
-	token, err := s.auth.CreateJWTToken(user.Id)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	pbUser := &pb.User{}
-	util.CopyStruct(&user, pbUser)
-
-	ip := util.GetGRPCRemoteIP(ctx)
-	loginAt := time.Now()
-	e := s.dbModel.UpdateByFields(&model.User{Id: user.Id, LoginAt: &loginAt, LastLoginIp: ip},
-		model.TableUser, user.Id, "login_at", "last_login_ip")
-	if e != nil {
-		s.logger.Error("UpdateUser", zap.Error(e))
-	}
-
-	return &pb.LoginReply{Token: token, User: pbUser}, nil
-}
-
-func (s *UserAPIService) Logout(ctx context.Context, req *emptypb.Empty) (res *emptypb.Empty, err error) {
-	res = &emptypb.Empty{}
-	userClaims, ok := ctx.Value(auth.CtxKeyUserClaims).(*auth.UserClaims)
-	if !ok {
-		return
-	}
-
-	// 标记退出的用户token
-	s.dbModel.Logout(userClaims.UserId, userClaims.UUID, userClaims.ExpiresAt)
-	return
-}
-
 // GetUser 根据ID获取用户信息
 // 对于非管理员，只能获取公开字段
+// 如果传递了Id参数，则表示查询用户的公开信息，否则查询当前用户的私有信息
 func (s *UserAPIService) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
 	userId := req.Id
 	fields := s.dbModel.GetUserPublicFields()
@@ -362,7 +302,7 @@ func (s *UserAPIService) DeleteUser(ctx context.Context, req *pb.DeleteUserReque
 
 	err = s.dbModel.DeleteUser(req.Id)
 	if err != nil {
-		s.logger.Error("DeleteUser", zap.Error(err))
+		s.logger.Errorf("DeleteUser", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -373,7 +313,7 @@ func (s *UserAPIService) DeleteUser(ctx context.Context, req *pb.DeleteUserReque
 // 1. 非管理员，只能查询公开信息
 // 2. 管理员，可以查询全部信息
 func (s *UserAPIService) ListUser(ctx context.Context, req *pb.ListUserRequest) (*pb.ListUserReply, error) {
-	s.logger.Debug("ListUser", zap.Any("req", req), zap.Any("status", req.Status))
+	s.logger.Debugf("ListUser", zap.Any("req", req), zap.Any("status", req.Status))
 
 	var (
 		userId        int64
@@ -404,11 +344,11 @@ func (s *UserAPIService) ListUser(ctx context.Context, req *pb.ListUserRequest) 
 	}
 
 	if len(req.GroupId) > 0 {
-		opt.QueryIn = map[string][]interface{}{"group_id": util.Slice2Interface(req.GroupId)}
+		opt.QueryIn = map[string][]interface{}{"group_id": cvt.ToArray(req.GroupId)}
 	}
 
 	if len(req.Status) > 0 {
-		opt.QueryIn = map[string][]interface{}{"status": util.Slice2Interface(req.Status)}
+		opt.QueryIn = map[string][]interface{}{"status": cvt.ToArray(req.Status)}
 	}
 
 	if req.Sort != "" {
@@ -454,62 +394,13 @@ func (s *UserAPIService) ListUser(ctx context.Context, req *pb.ListUserRequest) 
 		pbUsers[index].GroupId = append(pbUsers[index].GroupId, userGroup.GroupId)
 	}
 
-	s.logger.Debug("ListUser", zap.Any("userList", userList), zap.Any("pbUser", pbUsers), zap.Int64("total", total))
+	s.logger.Debugf("ListUser", zap.Any("userList", userList), zap.Any("pbUser", pbUsers), zap.Int64("total", total))
 	return &pb.ListUserReply{Total: total, User: pbUsers}, nil
-}
-
-// GetUserCaptcha 获取用户验证码
-func (s *UserAPIService) GetUserCaptcha(ctx context.Context, req *pb.GetUserCaptchaRequest) (res *pb.GetUserCaptchaReply, err error) {
-	cfgCaptcha := s.dbModel.GetConfigOfCaptcha()
-	cfgSecurity := s.dbModel.GetConfigOfSecurity()
-	res = &pb.GetUserCaptchaReply{
-		Enable: false,
-		Type:   cfgCaptcha.Type,
-	}
-	switch req.Type {
-	case "register":
-		res.Enable = cfgSecurity.EnableCaptchaRegister
-	case "login":
-		res.Enable = cfgSecurity.EnableCaptchaLogin
-	case "find_password":
-		res.Enable = cfgSecurity.EnableCaptchaFindPassword
-	case "comment":
-		res.Enable = cfgSecurity.EnableCaptchaComment
-	default:
-		return nil, status.Errorf(codes.InvalidArgument, ErrorMessageUnsupportedCaptchaType)
-	}
-
-	if res.Enable {
-		res.Id, res.Captcha, err = captcha.GenerateCaptcha(cfgCaptcha.Type, cfgCaptcha.Length, cfgCaptcha.Width, cfgCaptcha.Height)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, err.Error())
-		}
-	}
-
-	return res, nil
-}
-
-// GetUserPermissions 获取用户权限
-func (s *UserAPIService) GetUserPermissions(ctx context.Context, req *emptypb.Empty) (*pb.GetUserPermissionsReply, error) {
-	userClaims, ok := ctx.Value(auth.CtxKeyUserClaims).(*auth.UserClaims)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, ErrorMessageInvalidToken)
-	}
-
-	permissions, err := s.dbModel.GetUserPermissinsByUserId(userClaims.UserId)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	var pbPermissions []*pb.Permission
-	util.CopyStruct(&permissions, &pbPermissions)
-
-	return &pb.GetUserPermissionsReply{Permission: pbPermissions}, nil
 }
 
 // AddUser 新增用户
 func (s *UserAPIService) AddUser(ctx context.Context, req *pb.SetUserRequest) (*emptypb.Empty, error) {
-	s.logger.Debug("AddUser", zap.Any("req", req))
+	s.logger.Debugf("AddUser", zap.Any("req", req))
 
 	_, err := s.checkPermission(ctx)
 	if err != nil {
@@ -545,23 +436,14 @@ func (s *UserAPIService) AddUser(ctx context.Context, req *pb.SetUserRequest) (*
 	}
 
 	// 新增用户
-	user := &model.User{Username: req.Username, Password: req.Password, Email: req.Email}
+	user := &model.User{
+		Username: req.Username,
+		Password: req.Password,
+		Email:    req.Email}
+
 	err = s.dbModel.CreateUser(user, req.GroupId...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	return &emptypb.Empty{}, nil
-}
-
-func (s *UserAPIService) CanIUploadDocument(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
-	userClaims, err := checkGRPCLogin(s.dbModel, ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if !s.dbModel.CanIAccessUploadDocument(userClaims.UserId) {
-		return nil, status.Errorf(codes.PermissionDenied, "您没有上传文档的权限")
 	}
 
 	return &emptypb.Empty{}, nil
@@ -580,21 +462,6 @@ func (s *UserAPIService) CanIPublishArticle(ctx context.Context, req *emptypb.Em
 	return &emptypb.Empty{}, nil
 }
 
-func (s *UserAPIService) GetSignedToday(ctx context.Context, req *emptypb.Empty) (*v1.Sign, error) {
-	userClaims, err := checkGRPCLogin(s.dbModel, ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	sign := s.dbModel.GetSignedToday(userClaims.UserId)
-	if sign.Id == 0 {
-		return nil, status.Errorf(codes.NotFound, "您今天还没有签到")
-	}
-	pbSign := &v1.Sign{}
-	util.CopyStruct(&sign, pbSign)
-	return pbSign, nil
-}
-
 func (s *UserAPIService) SignToday(ctx context.Context, req *emptypb.Empty) (*v1.Sign, error) {
 	userClaims, err := checkGRPCLogin(s.dbModel, ctx)
 	if err != nil {
@@ -607,7 +474,7 @@ func (s *UserAPIService) SignToday(ctx context.Context, req *emptypb.Empty) (*v1
 	ip := util.GetGRPCRemoteIP(ctx)
 	sign, err := s.dbModel.CreateSign(userClaims.UserId, ip)
 	if err != nil {
-		s.logger.Error("签到失败", zap.Error(err))
+		s.logger.Errorf("签到失败", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	pbSign := &v1.Sign{}
@@ -714,7 +581,7 @@ func (s *UserAPIService) FindPasswordStepOne(ctx context.Context, req *v1.FindPa
 		body,
 	)
 	if err != nil {
-		s.logger.Error("发送邮件失败", zap.Error(err))
+		s.logger.Errorf("发送邮件失败", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -781,7 +648,7 @@ func (s *UserAPIService) ListUserDownload(ctx context.Context, req *v1.ListUserD
 		WithCount: true,
 	}
 
-	s.logger.Debug("ListUserDownload", zap.Any("opt", opt))
+	s.logger.Debugf("ListUserDownload", zap.Any("opt", opt))
 
 	opt.QueryIn["user_id"] = []interface{}{userClaims.UserId}
 	downloads, total, err := s.dbModel.GetDownloadList(opt)
@@ -866,7 +733,7 @@ func (s *UserAPIService) SendEmailCode(ctx context.Context, req *v1.SendEmailCod
 
 	err = s.dbModel.Create(&code)
 	if err != nil {
-		s.logger.Error("创建验证码失败", zap.Error(err))
+		s.logger.Errorf("创建验证码失败", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	return &emptypb.Empty{}, nil

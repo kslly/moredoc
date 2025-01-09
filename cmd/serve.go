@@ -16,6 +16,10 @@ limitations under the License.
 package cmd
 
 import (
+	"log"
+
+	"moredoc/pkg/logger"
+
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -26,9 +30,14 @@ var serveCmd = &cobra.Command{
 	Short: "启动服务",
 	Long:  `启动魔豆文库程序服务，提供文档管理与预览。`,
 	Run: func(cmd *cobra.Command, args []string) {
+		lg, err := logger.NewLogger()
+		if err != nil {
+			log.Print("instantiation logger error: ", err)
+			return
+		}
 		d, err := NewDaemon()
 		if err != nil {
-			logger.Error("启动服务失败：", zap.Error(err))
+			lg.Errorf("启动服务失败：", zap.Error(err))
 			return
 		}
 		d.Service.Run()

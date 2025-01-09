@@ -10,10 +10,11 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"moredoc/util/device"
 
-	"github.com/PuerkitoBio/goquery"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,11 +24,11 @@ import (
 type ConfigAPIService struct {
 	pb.UnimplementedConfigAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewConfigAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *ConfigAPIService) {
-	return &ConfigAPIService{dbModel: dbModel, logger: logger.Named("ConfigAPIService")}
+func NewConfigAPIService(dbModel *model.DBModel, logger logger.Logger) (service *ConfigAPIService) {
+	return &ConfigAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *ConfigAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -44,7 +45,7 @@ func (s *ConfigAPIService) UpdateConfig(ctx context.Context, req *pb.Configs) (*
 	var cfgs []*model.Config
 	err = util.CopyStruct(req.Config, &cfgs)
 	if err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("req", req), zap.Any("cfgs", cfgs), zap.Error(err))
+		s.logger.Errorf("util.CopyStruct", zap.Any("req", req), zap.Any("cfgs", cfgs), zap.Error(err))
 		fmt.Println(err.Error())
 	}
 
@@ -97,7 +98,7 @@ func (s *ConfigAPIService) ListConfig(ctx context.Context, req *pb.ListConfigReq
 
 	opt := &model.OptionGetList{
 		QueryIn: map[string][]interface{}{
-			"category": util.Slice2Interface(req.Category),
+			"category": cvt.ToArray(req.Category),
 		},
 	}
 
@@ -118,93 +119,6 @@ func (s *ConfigAPIService) ListConfig(ctx context.Context, req *pb.ListConfigReq
 	return &pb.Configs{Config: pbConfigs}, nil
 }
 
-// GetSettings 获取公开配置
-func (s *ConfigAPIService) GetSettings(ctx context.Context, req *emptypb.Empty) (*pb.Settings, error) {
-	res := &pb.Settings{
-		// Captcha:  &pb.ConfigCaptcha{},
-		System:   &pb.ConfigSystem{},
-		Footer:   &pb.ConfigFooter{},
-		Security: &pb.ConfigSecurity{},
-		Display:  &pb.ConfigDisplay{},
-	}
-
-	// captcha := s.dbModel.GetConfigOfCaptcha()
-	// util.CopyStruct(&captcha, res.Captcha)
-
-	system := s.dbModel.GetConfigOfSystem()
-	if err := util.CopyStruct(&system, res.System); err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("system", system), zap.Any("res.System", res.System), zap.Error(err))
-	}
-	system.Analytics = strings.TrimSpace(system.Analytics)
-	if system.Analytics != "" {
-		gq, errGQ := goquery.NewDocumentFromReader(strings.NewReader(system.Analytics))
-		if errGQ == nil {
-			var texts []string
-			gq.Find("script").Each(func(i int, selection *goquery.Selection) {
-				if text := strings.TrimSpace(selection.Text()); text != "" {
-					texts = append(texts, text)
-				}
-			})
-			if len(texts) > 0 {
-				res.System.Analytics = strings.Join(texts, "\n")
-			}
-		}
-	}
-	res.System.Version = util.Version
-	res.System.CreditName = s.dbModel.GetConfigOfScore(model.ConfigScoreCreditName).CreditName
-	footer := s.dbModel.GetConfigOfFooter()
-	if err := util.CopyStruct(&footer, res.Footer); err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("footer", footer), zap.Any("res.Footer", res.Footer), zap.Error(err))
-	}
-
-	security := s.dbModel.GetConfigOfSecurity()
-	if err := util.CopyStruct(&security, res.Security); err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("security", security), zap.Any("res.Security", res.Security), zap.Error(err))
-	}
-
-	display := s.dbModel.GetConfigOfDisplay()
-	if err := util.CopyStruct(&display, res.Display); err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("display", display), zap.Any("res.Display", res.Display), zap.Error(err))
-	}
-
-	langs, _, _ := s.dbModel.GetLanguageList(&model.OptionGetList{
-		WithCount:    false,
-		SelectFields: []string{"id", "language", "code"},
-		QueryIn: map[string][]interface{}{
-			"enable": {true},
-		},
-	})
-	util.CopyStruct(&langs, &res.Language)
-	return res, nil
-}
-
-func (s *ConfigAPIService) GetStats(ctx context.Context, req *emptypb.Empty) (res *pb.Stats, err error) {
-	res = &pb.Stats{
-		UserCount:       s.dbModel.Count(&model.User{}),
-		DocumentCount:   s.dbModel.Count(&model.Document{}),
-		CategoryCount:   0,
-		ArticleCount:    s.dbModel.Count(&model.Article{}),
-		CommentCount:    0,
-		BannerCount:     0,
-		FriendlinkCount: 0,
-		Os:              util.GetOSRelease(),
-		Version:         util.Version,
-		Hash:            util.Hash,
-		BuildAt:         util.BuildAt,
-	}
-
-	res.UserCount += s.dbModel.GetConfigOfDisplay(model.ConfigDisplayVirtualRegisterCount).VirtualRegisterCount
-	_, errPermission := s.checkPermission(ctx)
-	if errPermission == nil {
-		res.CategoryCount = s.dbModel.Count(&model.Category{})
-		res.CommentCount = s.dbModel.Count(&model.Comment{})
-		res.BannerCount = s.dbModel.Count(&model.Banner{})
-		res.FriendlinkCount = s.dbModel.Count(&model.Friendlink{})
-		res.ReportCount = s.dbModel.Count(&model.Report{})
-	}
-	return
-}
-
 // UpdateSitemap 更新站点地图
 func (s *ConfigAPIService) UpdateSitemap(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
 	_, err := s.checkPermission(ctx)
@@ -214,7 +128,7 @@ func (s *ConfigAPIService) UpdateSitemap(ctx context.Context, req *emptypb.Empty
 
 	err = s.dbModel.UpdateSitemap()
 	if err != nil {
-		s.logger.Error("UpdateSitemap", zap.Error(err))
+		s.logger.Errorf("UpdateSitemap", zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -325,7 +239,7 @@ func (s *ConfigAPIService) GetDeviceInfo(ctx context.Context, req *emptypb.Empty
 
 	err = util.CopyStruct(&cpu, res.Cpu)
 	if err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("cpu", cpu), zap.Any("res.Cpu", res.Cpu), zap.Error(err))
+		s.logger.Errorf("util.CopyStruct", zap.Any("cpu", cpu), zap.Any("res.Cpu", res.Cpu), zap.Error(err))
 		return
 	}
 	res.Cpu.Cores = int32(runtime.NumCPU())
@@ -333,7 +247,7 @@ func (s *ConfigAPIService) GetDeviceInfo(ctx context.Context, req *emptypb.Empty
 	mem := device.GetMemory()
 	err = util.CopyStruct(&mem, res.Memory)
 	if err != nil {
-		s.logger.Error("util.CopyStruct", zap.Any("mem", mem), zap.Any("res.Memory", res.Memory), zap.Error(err))
+		s.logger.Errorf("util.CopyStruct", zap.Any("mem", mem), zap.Any("res.Memory", res.Memory), zap.Error(err))
 		return
 	}
 
@@ -345,7 +259,7 @@ func (s *ConfigAPIService) GetDeviceInfo(ctx context.Context, req *emptypb.Empty
 			pbDisk := &pb.DiskInfo{}
 			err = util.CopyStruct(&disk, pbDisk)
 			if err != nil {
-				s.logger.Error("util.CopyStruct", zap.Any("disk", disk), zap.Any("res.Disk", res.Disk), zap.Error(err))
+				s.logger.Errorf("util.CopyStruct", zap.Any("disk", disk), zap.Any("res.Disk", res.Disk), zap.Error(err))
 				return
 			}
 			res.Disk = append(res.Disk, pbDisk)

@@ -10,10 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"moredoc/pkg/logger"
+
 	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 )
 
@@ -54,7 +55,7 @@ var (
 type DBModel struct {
 	db             *gorm.DB
 	tablePrefix    string
-	logger         *zap.Logger
+	logger         logger.Logger
 	tableFields    map[string][]string
 	tableFieldsMap map[string]map[string]struct{}
 	validToken     sync.Map // map[tokenUUID]struct{} 有效的token uuid
@@ -63,7 +64,7 @@ type DBModel struct {
 	cfg            *conf.Database
 }
 
-func NewDBModel(cfg *conf.Database, lg *zap.Logger) (m *DBModel, err error) {
+func NewDBModel(cfg *conf.Database, lg logger.Logger) (m *DBModel, err error) {
 	if lg == nil {
 		err = errors.New("logger cant be nil")
 		return
@@ -72,7 +73,7 @@ func NewDBModel(cfg *conf.Database, lg *zap.Logger) (m *DBModel, err error) {
 	tablePrefix = cfg.Prefix
 
 	m = &DBModel{
-		logger:         lg.Named("model"),
+		logger:         lg,
 		tablePrefix:    cfg.Prefix,
 		tableFields:    make(map[string][]string),
 		tableFieldsMap: make(map[string]map[string]struct{}),
@@ -104,13 +105,13 @@ func NewDBModel(cfg *conf.Database, lg *zap.Logger) (m *DBModel, err error) {
 		// Logger: logger.Default.LogMode(sqlLogLevel),
 	})
 	if err != nil {
-		m.logger.Error("NewDBModel", zap.Error(err), zap.Any("config", cfg))
+		m.logger.Errorf("NewDBModel", zap.Error(err), zap.Any("config", cfg))
 		return
 	}
 
 	sqlDB, err = db.DB()
 	if err != nil {
-		m.logger.Error("db.DB()", zap.Error(err))
+		m.logger.Errorf("db.DB()", zap.Error(err))
 		return
 	}
 
@@ -125,32 +126,6 @@ func NewDBModel(cfg *conf.Database, lg *zap.Logger) (m *DBModel, err error) {
 	sqlDB.SetConnMaxLifetime(time.Hour)
 	m.db = db
 
-	// 获取所有数据库表，并把数据库表字段加入到全局map，以便根据指定字段查询数据
-	tables, err := m.ShowTables()
-	if err != nil {
-		m.logger.Error("ShowTables", zap.Error(err))
-		return nil, err
-	}
-
-	for _, table := range tables {
-		columns, err := m.showTableColumn(table)
-		if err != nil {
-			m.logger.Error("showTableColumn", zap.Error(err))
-			return nil, err
-		}
-
-		var fields []string
-		for _, col := range columns {
-			fields = append(fields, col.Field)
-		}
-
-		m.tableFields[table] = fields
-		filedsMap := make(map[string]struct{})
-		for _, field := range fields {
-			filedsMap[field] = struct{}{}
-		}
-		m.tableFieldsMap[table] = filedsMap
-	}
 	return
 }
 
@@ -192,12 +167,12 @@ func (m *DBModel) SyncDB() (err error) {
 
 	m.alterTableBeforeSyncDB()
 	if err = m.db.AutoMigrate(tableModels...); err != nil {
-		m.logger.Fatal("SyncDB", zap.Error(err))
+		m.logger.Fatalf("SyncDB", zap.Error(err))
 		return
 	}
 
 	if err = m.initDatabase(); err != nil {
-		m.logger.Fatal("SyncDB", zap.Error(err))
+		m.logger.Fatalf("SyncDB", zap.Error(err))
 	}
 	return
 }
@@ -233,7 +208,7 @@ func (m *DBModel) DB() *gorm.DB {
 func (m *DBModel) ShowTables() (tables []string, err error) {
 	err = m.db.Raw("show tables").Scan(&tables).Error
 	if err != nil {
-		m.logger.Error("ShowTables", zap.Error(err))
+		m.logger.Errorf("ShowTables", zap.Error(err))
 	}
 	return
 }
@@ -241,13 +216,13 @@ func (m *DBModel) ShowTables() (tables []string, err error) {
 func (m *DBModel) alterTableBeforeSyncDB() {
 	// 查询mnt_user表，将email字段由唯一索引删掉，以便变更为普通索引
 	indexes := m.ShowIndexes(TableUser)
-	m.logger.Debug("alterTableBeforeSyncDB", zap.String("table", TableUser), zap.Any("indexes", indexes))
+	m.logger.Debugf("alterTableBeforeSyncDB", zap.String("table", TableUser), zap.Any("indexes", indexes))
 
 	for _, index := range indexes {
 		if index.ColumnName == "email" && index.NonUnique == 0 { // 唯一索引，需要删除原索引
 			err := m.db.Exec(fmt.Sprintf("alter table %s drop index %s", TableUser, index.KeyName)).Error
 			if err != nil {
-				m.logger.Error("alterTableBeforeSyncDB", zap.Error(err))
+				m.logger.Errorf("alterTableBeforeSyncDB", zap.Error(err))
 			}
 		}
 	}
@@ -264,7 +239,7 @@ func (m *DBModel) ShowIndexes(table string) (indexes []TableIndex) {
 	sql := "show index from " + table
 	err := m.db.Raw(sql).Find(&indexes).Error
 	if err != nil {
-		m.logger.Error("ShowIndexes", zap.Error(err))
+		m.logger.Errorf("ShowIndexes", zap.Error(err))
 	}
 	return
 }
@@ -327,7 +302,7 @@ func (m *DBModel) GetTableFields(tableName string, ignoreField ...string) (field
 func (m *DBModel) CloseDB() {
 	sqlDB, err := m.db.DB()
 	if err != nil {
-		m.logger.Error("db.DB()", zap.Error(err))
+		m.logger.Errorf("db.DB()", zap.Error(err))
 		return
 	}
 	sqlDB.Close()
@@ -336,7 +311,7 @@ func (m *DBModel) CloseDB() {
 func (m *DBModel) showTableColumn(tableName string) (columns []TableColumn, err error) {
 	err = m.db.Raw("SHOW FULL COLUMNS FROM " + tableName).Find(&columns).Error
 	if err != nil {
-		m.logger.Error("ShowTableColumn", zap.Error(err))
+		m.logger.Errorf("ShowTableColumn", zap.Error(err))
 	}
 	return
 }
@@ -345,19 +320,19 @@ func (m *DBModel) showTableColumn(tableName string) (columns []TableColumn, err 
 func (m *DBModel) initDatabase() (err error) {
 	// 初始化用户组及其权限
 	if err = m.initGroupAndPermission(); err != nil {
-		m.logger.Error("initGroupAndPermission", zap.Error(err))
+		m.logger.Errorf("initGroupAndPermission", zap.Error(err))
 		return
 	}
 
 	// 初始化用户
 	if err = m.initUser(); err != nil {
-		m.logger.Error("initUser", zap.Error(err))
+		m.logger.Errorf("initUser", zap.Error(err))
 		return
 	}
 
 	// 初始化配置
 	if err = m.initConfig(); err != nil {
-		m.logger.Error("initConfig", zap.Error(err))
+		m.logger.Errorf("initConfig", zap.Error(err))
 		return
 	}
 
@@ -366,7 +341,7 @@ func (m *DBModel) initDatabase() (err error) {
 
 	// 初始化友情链接
 	if err = m.initFriendlink(); err != nil {
-		m.logger.Error("initFriendlink", zap.Error(err))
+		m.logger.Errorf("initFriendlink", zap.Error(err))
 		return
 	}
 
@@ -375,7 +350,7 @@ func (m *DBModel) initDatabase() (err error) {
 
 	// 初始化语言
 	if err = m.initLanguage(); err != nil {
-		m.logger.Error("initLanguage", zap.Error(err))
+		m.logger.Errorf("initLanguage", zap.Error(err))
 	}
 
 	// 初始化导航栏
@@ -421,7 +396,7 @@ func (m *DBModel) initGroupAndPermission() (err error) {
 		// 用户组还不存在，则创建初始用户组
 		err = sess.Create(&groups).Error
 		if err != nil {
-			m.logger.Error("initGroup", zap.Error(err))
+			m.logger.Errorf("initGroup", zap.Error(err))
 			return
 		}
 	}
@@ -433,7 +408,7 @@ func (m *DBModel) initGroupAndPermission() (err error) {
 		if existPermission.Id == 0 {
 			err = sess.Create(&permission).Error
 			if err != nil {
-				m.logger.Error("initPermission", zap.Error(err))
+				m.logger.Errorf("initPermission", zap.Error(err))
 				return
 			}
 			continue
@@ -443,7 +418,7 @@ func (m *DBModel) initGroupAndPermission() (err error) {
 			existPermission.Title = permission.Title
 			err = sess.Save(&existPermission).Error
 			if err != nil {
-				m.logger.Error("initPermission", zap.Error(err))
+				m.logger.Errorf("initPermission", zap.Error(err))
 				return
 			}
 		}
@@ -584,10 +559,10 @@ func (m *DBModel) IsSupportGroupBy() (yes bool, sqlMode string) {
 	}
 	err := m.db.Raw("SHOW VARIABLES LIKE 'sql_mode'").Scan(&variables).Error
 	if err != nil {
-		m.logger.Error("CheckMySQLGroupBy", zap.Error(err))
+		m.logger.Errorf("CheckMySQLGroupBy", zap.Error(err))
 		return
 	}
-	m.logger.Debug("CheckMySQLGroupBy", zap.Any("variables", variables))
+	m.logger.Debugf("CheckMySQLGroupBy", zap.Any("variables", variables))
 	yes = !strings.Contains(variables.Value, "ONLY_FULL_GROUP_BY")
 	return yes, variables.Value
 }
@@ -596,7 +571,7 @@ func (m *DBModel) IsSupportGroupBy() (yes bool, sqlMode string) {
 func (m *DBModel) SetSQLMode() (err error) {
 	err = m.db.Exec("set global sql_mode=(select replace(@@sql_mode,'ONLY_FULL_GROUP_BY',''))").Error
 	if err != nil {
-		m.logger.Error("SetSQLMode", zap.Error(err))
+		m.logger.Errorf("SetSQLMode", zap.Error(err))
 		return
 	}
 
@@ -608,11 +583,6 @@ func (m *DBModel) resetDB() (err error) {
 		db    *gorm.DB
 		sqlDB *sql.DB
 	)
-
-	sqlLogLevel := logger.Info
-	if !m.cfg.ShowSQL {
-		sqlLogLevel = logger.Silent
-	}
 
 	db, err = gorm.Open(mysql.New(mysql.Config{
 		DSN:                       m.cfg.DSN, // DSN data source name
@@ -626,16 +596,15 @@ func (m *DBModel) resetDB() (err error) {
 			TablePrefix:   m.cfg.Prefix, // 表名前缀，`User`表为`t_users`
 			SingularTable: true,         // 使用单数表名，启用该选项后，`User` 表将是`user`
 		},
-		Logger: logger.Default.LogMode(sqlLogLevel),
 	})
 	if err != nil {
-		m.logger.Error("NewDBModel", zap.Error(err), zap.Any("config", m.cfg))
+		m.logger.Errorf("NewDBModel", zap.Error(err), zap.Any("config", m.cfg))
 		return
 	}
 
 	sqlDB, err = db.DB()
 	if err != nil {
-		m.logger.Error("db.DB()", zap.Error(err))
+		m.logger.Errorf("db.DB()", zap.Error(err))
 		return
 	}
 

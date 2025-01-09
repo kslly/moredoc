@@ -10,6 +10,8 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"moredoc/util/segword/jieba"
 
@@ -24,11 +26,11 @@ import (
 type ArticleAPIService struct {
 	pb.UnimplementedArticleAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewArticleAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *ArticleAPIService) {
-	return &ArticleAPIService{dbModel: dbModel, logger: logger.Named("ArticleAPIService")}
+func NewArticleAPIService(dbModel *model.DBModel, logger logger.Logger) (service *ArticleAPIService) {
+	return &ArticleAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *ArticleAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -66,7 +68,7 @@ func (s *ArticleAPIService) CreateArticle(ctx context.Context, req *pb.Article) 
 	article := &model.Article{}
 	err = util.CopyStruct(req, article)
 	if err != nil {
-		s.logger.Error("CreateArticle", zap.Error(err))
+		s.logger.Errorf("CreateArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -83,18 +85,18 @@ func (s *ArticleAPIService) CreateArticle(ctx context.Context, req *pb.Article) 
 		article.Status = s.dbModel.GetDefaultArticleStatus(userClaims.UserId)
 	}
 
-	s.logger.Debug("CreateArticle", zap.Any("article", article))
+	s.logger.Debugf("CreateArticle", zap.Any("article", article))
 	s.fixKeywordsAndDescription(article)
 	err = s.dbModel.CreateArticle(article)
 	if err != nil {
-		s.logger.Error("CreateArticle", zap.Error(err))
+		s.logger.Errorf("CreateArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	res := &pb.Article{}
 	err = util.CopyStruct(article, res)
 	if err != nil {
-		s.logger.Error("CreateArticle", zap.Error(err))
+		s.logger.Errorf("CreateArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -110,7 +112,7 @@ func (s *ArticleAPIService) UpdateArticle(ctx context.Context, req *pb.Article) 
 	article := &model.Article{}
 	err = util.CopyStruct(req, article)
 	if err != nil {
-		s.logger.Error("UpdateArticle", zap.Error(err))
+		s.logger.Errorf("UpdateArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -145,7 +147,7 @@ func (s *ArticleAPIService) UpdateArticle(ctx context.Context, req *pb.Article) 
 	s.fixKeywordsAndDescription(article)
 	err = s.dbModel.UpdateArticle(article)
 	if err != nil {
-		s.logger.Error("UpdateArticle", zap.Error(err))
+		s.logger.Errorf("UpdateArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -166,7 +168,7 @@ func (s *ArticleAPIService) DeleteArticle(ctx context.Context, req *pb.DeleteArt
 
 	if !userClaims.HaveAccess { // 非管理员，只能删除自己的文章
 		articles, _, _ := s.dbModel.GetArticleList(&model.OptionGetArticleList{
-			Ids:          util.Slice2Interface(req.Id),
+			Ids:          cvt.ToArray(req.Id),
 			WithCount:    false,
 			SelectFields: []string{"id"},
 			QueryIn: map[string][]interface{}{
@@ -183,7 +185,7 @@ func (s *ArticleAPIService) DeleteArticle(ctx context.Context, req *pb.DeleteArt
 
 	err = s.dbModel.DeleteArticle(ids)
 	if err != nil {
-		s.logger.Error("DeleteArticle", zap.Error(err))
+		s.logger.Errorf("DeleteArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "删除文章失败:"+err.Error())
 	}
 
@@ -201,13 +203,13 @@ func (s *ArticleAPIService) GetArticle(ctx context.Context, req *pb.GetArticleRe
 	if req.Id > 0 {
 		article, err = s.dbModel.GetArticle(req.Id)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			s.logger.Error("GetArticle", zap.Error(err))
+			s.logger.Errorf("GetArticle", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, "获取文章失败")
 		}
 	} else {
 		article, err = s.dbModel.GetArticleByIdentifier(req.Identifier)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			s.logger.Error("GetArticle", zap.Error(err))
+			s.logger.Errorf("GetArticle", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, err.Error())
 		}
 		article.ViewCount += 1
@@ -218,7 +220,7 @@ func (s *ArticleAPIService) GetArticle(ctx context.Context, req *pb.GetArticleRe
 	}
 
 	userClaims, _ := s.checkPermission(ctx)
-	s.logger.Debug("GetArticle", zap.Any("userClaims", userClaims), zap.Any("article", article))
+	s.logger.Debugf("GetArticle", zap.Any("userClaims", userClaims), zap.Any("article", article))
 	// 管理员或者是作者，可以查看未通过的文章
 	if article.Status != model.ArticleStatusPass {
 		if userClaims == nil {
@@ -240,87 +242,6 @@ func (s *ArticleAPIService) GetArticle(ctx context.Context, req *pb.GetArticleRe
 		util.CopyStruct(&user, pbArticle.User)
 	}
 	return pbArticle, nil
-}
-
-// ListArticles 获取文章列表。
-// 如果是有权限，则可以根据关键字来查询，否则只能简单查询
-func (s *ArticleAPIService) ListArticle(ctx context.Context, req *pb.ListArticleRequest) (*pb.ListArticleReply, error) {
-	opt := &model.OptionGetArticleList{
-		Page:        int(req.Page),
-		Size:        int(req.Size_),
-		WithCount:   true,
-		QueryLike:   make(map[string][]interface{}),
-		QueryIn:     make(map[string][]interface{}),
-		Sort:        []string{req.Order},
-		IsRecommend: req.IsRecommend,
-	}
-
-	userClaims, _ := s.checkPermission(ctx)
-	if userClaims == nil {
-		opt.QueryLike["status"] = []interface{}{1}
-	} else if userClaims.HaveAccess || (len(req.UserId) > 0 && req.UserId[0] == userClaims.UserId) {
-		// 管理员或者是作者，可以查询相关状态的文档
-		if req.Wd != "" {
-			opt.QueryLike["title"] = []interface{}{req.Wd}
-			opt.QueryLike["keywords"] = []interface{}{req.Wd}
-			opt.QueryLike["description"] = []interface{}{req.Wd}
-		}
-		if len(req.Status) > 0 {
-			opt.QueryIn["status"] = util.Slice2Interface(req.Status)
-		}
-	}
-
-	if len(req.CategoryId) > 0 {
-		opt.QueryIn["category_id"] = util.Slice2Interface(req.CategoryId)
-	}
-
-	if len(req.UserId) > 0 {
-		opt.QueryIn["user_id"] = util.Slice2Interface(req.UserId)
-	}
-
-	articles, total, err := s.dbModel.GetArticleList(opt)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("ListArticle", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, "获取文章列表失败")
-	}
-
-	var pbArticle []*pb.Article
-	err = util.CopyStruct(articles, &pbArticle)
-	if err != nil {
-		s.logger.Error("ListArticle", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, "获取文章列表失败"+err.Error())
-	}
-
-	var (
-		userIds         []int64
-		userMapArticles = make(map[int64][]int)
-	)
-	for idx, article := range articles {
-		userIds = append(userIds, article.UserId)
-		userMapArticles[article.UserId] = append(userMapArticles[article.UserId], idx)
-	}
-
-	if len(userIds) > 0 {
-		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
-			QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(userIds)},
-			SelectFields: []string{"id", "username", "avatar"},
-		})
-
-		for _, user := range users {
-			for _, idx := range userMapArticles[user.Id] {
-				pbArticle[idx].User = &pb.User{
-					Id:       user.Id,
-					Username: user.Username,
-					Avatar:   user.Avatar,
-				}
-			}
-		}
-	}
-
-	return &pb.ListArticleReply{
-		Total:   total,
-		Article: pbArticle,
-	}, nil
 }
 
 // SetArticlesCategory
@@ -358,14 +279,14 @@ func (s *ArticleAPIService) ListRecycleArticle(ctx context.Context, req *pb.List
 
 	articles, total, err := s.dbModel.GetArticleList(opt)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("ListArticle", zap.Error(err))
+		s.logger.Errorf("ListArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "获取文章列表失败")
 	}
 
 	var pbArticle []*pb.Article
 	err = util.CopyStruct(articles, &pbArticle)
 	if err != nil {
-		s.logger.Error("ListArticle", zap.Error(err))
+		s.logger.Errorf("ListArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "获取文章列表失败"+err.Error())
 	}
 
@@ -383,7 +304,7 @@ func (s *ArticleAPIService) RestoreRecycleArticle(ctx context.Context, req *pb.R
 
 	err = s.dbModel.RestoreArticle(req.Id)
 	if err != nil {
-		s.logger.Error("RestoreRecycleArticle", zap.Error(err))
+		s.logger.Errorf("RestoreRecycleArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "恢复文章失败："+err.Error())
 	}
 
@@ -398,7 +319,7 @@ func (s *ArticleAPIService) DeleteRecycleArticle(ctx context.Context, req *pb.De
 
 	err = s.dbModel.DeleteArticle(req.Id, true)
 	if err != nil {
-		s.logger.Error("DeleteRecycleArticle", zap.Error(err))
+		s.logger.Errorf("DeleteRecycleArticle", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "删除文章失败")
 	}
 
@@ -413,7 +334,7 @@ func (s *ArticleAPIService) RecommendArticles(ctx context.Context, req *pb.Recom
 
 	err = s.dbModel.RecommendArticles(req.ArticleId, req.IsRecommend)
 	if err != nil {
-		s.logger.Error("RecommendArticles", zap.Error(err))
+		s.logger.Errorf("RecommendArticles", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "推荐文章失败")
 	}
 
@@ -434,7 +355,7 @@ func (s *ArticleAPIService) EmptyRecycleArticle(ctx context.Context, req *emptyp
 	for {
 		articles, _, err := s.dbModel.GetArticleList(opt)
 		if err != nil && err != gorm.ErrRecordNotFound {
-			s.logger.Error("EmptyRecycleArticle", zap.Error(err))
+			s.logger.Errorf("EmptyRecycleArticle", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, "清空回收站失败")
 		}
 
@@ -446,7 +367,7 @@ func (s *ArticleAPIService) EmptyRecycleArticle(ctx context.Context, req *emptyp
 		if len(ids) > 0 {
 			err = s.dbModel.DeleteArticle(ids, true)
 			if err != nil {
-				s.logger.Error("EmptyRecycleArticle", zap.Error(err))
+				s.logger.Errorf("EmptyRecycleArticle", zap.Error(err))
 				return nil, status.Errorf(codes.Internal, "清空回收站失败")
 			}
 		}
@@ -468,7 +389,7 @@ func (s *ArticleAPIService) CheckArticles(ctx context.Context, req *pb.CheckArti
 
 	err = s.dbModel.CheckArticles(req.ArticleId, req.Status, req.RejeactReason)
 	if err != nil {
-		s.logger.Error("CheckArticles", zap.Error(err))
+		s.logger.Errorf("CheckArticles", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "审核文章失败")
 	}
 	return &emptypb.Empty{}, nil
@@ -487,7 +408,7 @@ func (s *ArticleAPIService) GetRelatedArticles(ctx context.Context, req *pb.GetA
 	var pbArticle []*pb.Article
 	err := util.CopyStruct(articles, &pbArticle)
 	if err != nil {
-		s.logger.Error("GetRelatedArticles", zap.Error(err))
+		s.logger.Errorf("GetRelatedArticles", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "获取相关文章失败")
 	}
 	return &pb.ListArticleReply{Article: pbArticle}, nil
@@ -515,14 +436,14 @@ func (s *ArticleAPIService) SearchArticle(ctx context.Context, req *pb.ListArtic
 		return res, nil
 	}
 	opt.QueryLike = map[string][]interface{}{
-		"title":       util.Slice2Interface(strings.Split(req.Wd, " ")),
-		"keywords":    util.Slice2Interface(strings.Split(req.Wd, " ")),
-		"description": util.Slice2Interface(strings.Split(req.Wd, " ")),
+		"title":       cvt.ToArray(strings.Split(req.Wd, " ")),
+		"keywords":    cvt.ToArray(strings.Split(req.Wd, " ")),
+		"description": cvt.ToArray(strings.Split(req.Wd, " ")),
 	}
 
 	if len(req.CategoryId) > 0 {
 		opt.QueryIn = map[string][]interface{}{
-			"category_id": util.Slice2Interface(req.CategoryId),
+			"category_id": cvt.ToArray(req.CategoryId),
 		}
 	}
 
@@ -536,7 +457,7 @@ func (s *ArticleAPIService) SearchArticle(ctx context.Context, req *pb.ListArtic
 	}
 
 	if len(req.UserId) > 0 {
-		opt.QueryIn["user_id"] = util.Slice2Interface(req.UserId)
+		opt.QueryIn["user_id"] = cvt.ToArray(req.UserId)
 	}
 
 	if req.Sort != "" {

@@ -87,11 +87,4 @@ service CategoryAPI {
       get : '/api/v1/category',
     };
   }
-
-  // 分类列表
-  rpc ListCategory(ListCategoryRequest) returns (ListCategoryReply) {
-    option (google.api.http) = {
-      get : '/api/v1/category/list',
-    };
-  }
 }

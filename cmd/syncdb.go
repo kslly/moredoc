@@ -16,6 +16,8 @@ limitations under the License.
 package cmd
 
 import (
+	"log"
+	"moredoc/pkg/logger"
 	"moredoc/service"
 
 	"github.com/spf13/cobra"
@@ -27,7 +29,12 @@ var syncdbCmd = &cobra.Command{
 	Short: "同步数据库",
 	Long:  `同步数据库表结构以及初始化数据。`,
 	Run: func(cmd *cobra.Command, args []string) {
-		service.SyncDB(cfg, logger)
+		lg, err := logger.NewLogger()
+		if err != nil {
+			log.Print("instantiation logger error: ", err)
+			return
+		}
+		service.SyncDB(cfg, lg)
 	},
 }
 

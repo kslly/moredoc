@@ -52,7 +52,7 @@ func (m *DBModel) createSearchRecordFromQueue() {
 			if len(searchRecordList) > 0 {
 				err := m.DB().CreateInBatches(&searchRecordList, 10).Error
 				if err != nil {
-					m.logger.Error("createSearchRecordByQueue", zap.Error(err))
+					m.logger.Errorf("createSearchRecordByQueue", zap.Error(err))
 				}
 				searchRecordList = nil
 
@@ -60,7 +60,7 @@ func (m *DBModel) createSearchRecordFromQueue() {
 				retentionDays := m.GetConfigOfSecurity(ConfigSecuritySearchRecordRetentionDays).SearchRecordRetentionDays
 				err = m.DB().Where("created_at < ?", time.Now().AddDate(0, 0, -int(retentionDays)).Format("2006-01-02 00:00:00")).Delete(&SearchRecord{}).Error
 				if err != nil {
-					m.logger.Error("createSearchRecordByQueue", zap.Error(err))
+					m.logger.Errorf("createSearchRecordByQueue", zap.Error(err))
 				}
 			}
 		}

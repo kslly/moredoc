@@ -6,6 +6,7 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
 	"go.uber.org/zap"
@@ -18,11 +19,11 @@ import (
 type GroupAPIService struct {
 	pb.UnimplementedGroupAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewGroupAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *GroupAPIService) {
-	return &GroupAPIService{dbModel: dbModel, logger: logger.Named("GroupAPIService")}
+func NewGroupAPIService(dbModel *model.DBModel, logger logger.Logger) (service *GroupAPIService) {
+	return &GroupAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *GroupAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -34,7 +35,7 @@ func (s *GroupAPIService) checkPermission(ctx context.Context) (userClaims *auth
 // 1. 检查用户组是否存在
 // 2. 创建用户组
 func (s *GroupAPIService) CreateGroup(ctx context.Context, req *pb.Group) (*pb.Group, error) {
-	s.logger.Debug("CreateGroup", zap.Any("req", req))
+	s.logger.Debugf("CreateGroup", zap.Any("req", req))
 
 	_, err := s.checkPermission(ctx)
 	if err != nil {
@@ -97,7 +98,7 @@ func (s *GroupAPIService) DeleteGroup(ctx context.Context, req *pb.DeleteGroupRe
 }
 
 func (s *GroupAPIService) GetGroup(ctx context.Context, req *pb.GetGroupRequest) (*pb.Group, error) {
-	s.logger.Debug("GetGroup", zap.Any("req", req))
+	s.logger.Debugf("GetGroup", zap.Any("req", req))
 	group := &model.Group{}
 	err := s.dbModel.GetByID(req.Id, group)
 	if err != nil && err != gorm.ErrRecordNotFound {
@@ -112,7 +113,7 @@ func (s *GroupAPIService) GetGroup(ctx context.Context, req *pb.GetGroupRequest)
 
 // ListGroup 列出用户组。所有用户都可以查询
 func (s *GroupAPIService) ListGroup(ctx context.Context, req *pb.ListGroupRequest) (*pb.ListGroupReply, error) {
-	s.logger.Debug("ListGroup", zap.Any("req", req))
+	s.logger.Debugf("ListGroup", zap.Any("req", req))
 	opt := &model.OptionGetList{
 		Page:         int(req.Page),
 		Size:         int(req.Size_),
@@ -163,7 +164,7 @@ func (s *GroupAPIService) UpdateGroupPermission(ctx context.Context, req *pb.Upd
 
 	err = s.dbModel.UpdateGroupPermissions(req.GroupId, req.PermissionId)
 	if err != nil {
-		s.logger.Error("UpdateGroupPermissions", zap.Error(err))
+		s.logger.Errorf("UpdateGroupPermissions", zap.Error(err))
 		return nil, err
 	}
 

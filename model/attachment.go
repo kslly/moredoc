@@ -91,7 +91,7 @@ func (m *DBModel) GetAttachmentByTypeAndTypeId(typ int, typeId int64, fields ...
 	}
 	err := db.Where("type = ? and type_id = ?", typ, typeId).Last(&attachment).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetAttachmentByTypeAndTypeId", zap.Error(err))
+		m.logger.Errorf("GetAttachmentByTypeAndTypeId", zap.Error(err))
 	}
 	return
 }
@@ -107,7 +107,7 @@ func (m *DBModel) setAttachmentType(attachmentType int, attachmentTypeId int64, 
 	if len(hashes) > 0 {
 		err := m.db.Model(&Attachment{}).Where("hash in (?) and type = ? and type_id = 0", hashes, attachmentType).Update("type_id", attachmentTypeId).Error
 		if err != nil {
-			m.logger.Error("setAttachmentType", zap.Error(err))
+			m.logger.Errorf("setAttachmentType", zap.Error(err))
 		}
 	}
 }
@@ -134,7 +134,7 @@ func (m *DBModel) SetAttachmentTypeId(attachIdTypeIdMap map[int64]int64) {
 			Where("id = ?", attachmentId).
 			Update("type_id", typeId).Error
 		if err != nil {
-			m.logger.Error("SetAttachmentTypeId", zap.Error(err))
+			m.logger.Errorf("SetAttachmentTypeId", zap.Error(err))
 			return
 		}
 	}
@@ -144,7 +144,7 @@ func (m *DBModel) SetAttachmentTypeId(attachIdTypeIdMap map[int64]int64) {
 func (m *DBModel) SetAttachmentContent(id int64, content []byte) (err error) {
 	attachment, err := m.GetAttachment(id, "hash")
 	if err != nil {
-		m.logger.Error("SetAttachmentContent", zap.Error(err))
+		m.logger.Errorf("SetAttachmentContent", zap.Error(err))
 		return
 	}
 	return m.SetAttachmentContentByHash(attachment.Hash, content)
@@ -166,7 +166,7 @@ func (m *DBModel) SetAttachmentContentByHash(hash string, content []byte) (err e
 	existAttachmentContent := &AttachmentContent{}
 	err = m.db.Model(&AttachmentContent{}).Where("hash = ?", hash).First(existAttachmentContent).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("SetAttachmentContent", zap.Error(err))
+		m.logger.Errorf("SetAttachmentContent", zap.Error(err))
 		return
 	}
 	existAttachmentContent.Hash = hash
@@ -182,7 +182,7 @@ func (m *DBModel) GetAttachmentContent(hash string) (content *AttachmentContent,
 	content = &AttachmentContent{}
 	err = m.db.Model(&AttachmentContent{}).Where("hash = ?", hash).First(content).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetAttachmentContent", zap.Error(err))
+		m.logger.Errorf("GetAttachmentContent", zap.Error(err))
 		return
 	}
 	err = nil

@@ -426,8 +426,6 @@ type FriendlinkAPIClient interface {
 	DeleteFriendlink(ctx context.Context, in *DeleteFriendlinkRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 获取友情链接
 	GetFriendlink(ctx context.Context, in *GetFriendlinkRequest, opts ...grpc.CallOption) (*Friendlink, error)
-	// 获取友情链接
-	ListFriendlink(ctx context.Context, in *ListFriendlinkRequest, opts ...grpc.CallOption) (*ListFriendlinkReply, error)
 }
 
 type friendlinkAPIClient struct {
@@ -474,14 +472,7 @@ func (c *friendlinkAPIClient) GetFriendlink(ctx context.Context, in *GetFriendli
 	return out, nil
 }
 
-func (c *friendlinkAPIClient) ListFriendlink(ctx context.Context, in *ListFriendlinkRequest, opts ...grpc.CallOption) (*ListFriendlinkReply, error) {
-	out := new(ListFriendlinkReply)
-	err := c.cc.Invoke(ctx, "/api.v1.FriendlinkAPI/ListFriendlink", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
+
 
 // FriendlinkAPIServer is the server API for FriendlinkAPI service.
 type FriendlinkAPIServer interface {
@@ -493,8 +484,6 @@ type FriendlinkAPIServer interface {
 	DeleteFriendlink(context.Context, *DeleteFriendlinkRequest) (*emptypb.Empty, error)
 	// 获取友情链接
 	GetFriendlink(context.Context, *GetFriendlinkRequest) (*Friendlink, error)
-	// 获取友情链接
-	ListFriendlink(context.Context, *ListFriendlinkRequest) (*ListFriendlinkReply, error)
 }
 
 // UnimplementedFriendlinkAPIServer can be embedded to have forward compatible implementations.
@@ -512,9 +501,6 @@ func (*UnimplementedFriendlinkAPIServer) DeleteFriendlink(ctx context.Context, r
 }
 func (*UnimplementedFriendlinkAPIServer) GetFriendlink(ctx context.Context, req *GetFriendlinkRequest) (*Friendlink, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetFriendlink not implemented")
-}
-func (*UnimplementedFriendlinkAPIServer) ListFriendlink(ctx context.Context, req *ListFriendlinkRequest) (*ListFriendlinkReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListFriendlink not implemented")
 }
 
 func RegisterFriendlinkAPIServer(s *grpc.Server, srv FriendlinkAPIServer) {
@@ -593,23 +579,6 @@ func _FriendlinkAPI_GetFriendlink_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _FriendlinkAPI_ListFriendlink_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListFriendlinkRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FriendlinkAPIServer).ListFriendlink(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.FriendlinkAPI/ListFriendlink",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FriendlinkAPIServer).ListFriendlink(ctx, req.(*ListFriendlinkRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
 
 var _FriendlinkAPI_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.v1.FriendlinkAPI",
@@ -630,10 +599,6 @@ var _FriendlinkAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetFriendlink",
 			Handler:    _FriendlinkAPI_GetFriendlink_Handler,
-		},
-		{
-			MethodName: "ListFriendlink",
-			Handler:    _FriendlinkAPI_ListFriendlink_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

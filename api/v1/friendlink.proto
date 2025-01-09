@@ -80,11 +80,4 @@ service FriendlinkAPI {
       get : '/api/v1/friendlink',
     };
   }
-
-  // 获取友情链接
-  rpc ListFriendlink(ListFriendlinkRequest) returns (ListFriendlinkReply) {
-    option (google.api.http) = {
-      get : '/api/v1/friendlink/list',
-    };
-  }
 }

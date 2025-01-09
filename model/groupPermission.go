@@ -34,7 +34,7 @@ func (m *DBModel) UpdateGroupPermissions(groupdId int64, permissionIds []int64) 
 	// 删除旧的权限
 	err = sess.Where("group_id = ?", groupdId).Delete(&GroupPermission{}).Error
 	if err != nil {
-		m.logger.Error("delete old permission", zap.Error(err))
+		m.logger.Errorf("delete old permission", zap.Error(err))
 		return
 	}
 
@@ -58,7 +58,7 @@ func (m *DBModel) UpdateGroupPermissions(groupdId int64, permissionIds []int64) 
 
 	err = sess.Create(&permissions).Error
 	if err != nil {
-		m.logger.Error("create group permission", zap.Error(err))
+		m.logger.Errorf("create group permission", zap.Error(err))
 		return
 	}
 

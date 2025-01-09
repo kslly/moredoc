@@ -201,21 +201,6 @@ service UserAPI {
     };
   }
 
-  // 用户登录
-  rpc Login(RegisterAndLoginRequest) returns (LoginReply) {
-    option (google.api.http) = {
-      post : '/api/v1/user/login',
-      body : '*',
-    };
-  }
-
-  // 退出登录
-  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      delete : '/api/v1/user/logout',
-    };
-  }
-
   // 查询用户信息。如果传递了Id参数，则表示查询用户的公开信息，否则查询当前用户的私有信息
   rpc GetUser(GetUserRequest) returns (User) {
     option (google.api.http) = {
@@ -273,29 +258,6 @@ service UserAPI {
     };
   }
 
-  // GetUserCaptcha 获取用户验证码
-  rpc GetUserCaptcha(GetUserCaptchaRequest) returns (GetUserCaptchaReply) {
-    option (google.api.http) = {
-      get : '/api/v1/user/captcha',
-    };
-  }
-
-  // GetUserCaptcha 获取用户验证码
-  rpc GetUserPermissions(google.protobuf.Empty)
-      returns (GetUserPermissionsReply) {
-    option (google.api.http) = {
-      get : '/api/v1/user/permission',
-    };
-  }
-
-  // 用户是否可以上传文档
-  rpc CanIUploadDocument(google.protobuf.Empty)
-      returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      get : '/api/v1/user/caniuploaddocument',
-    };
-  }
-
   // 用户是否可以发布文章
   rpc CanIPublishArticle(google.protobuf.Empty)
       returns (google.protobuf.Empty) {
@@ -315,13 +277,6 @@ service UserAPI {
   rpc SignToday(google.protobuf.Empty) returns (Sign) {
     option (google.api.http) = {
       put : '/api/v1/user/sign',
-    };
-  }
-
-  // 获取今日已签到记录
-  rpc GetSignedToday(google.protobuf.Empty) returns (Sign) {
-    option (google.api.http) = {
-      get : '/api/v1/user/sign',
     };
   }
 

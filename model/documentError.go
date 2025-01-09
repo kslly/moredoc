@@ -25,7 +25,7 @@ func (m *DBModel) SetDocumentConvertError(documentId int64, err error) error {
 		// 如果没有错误，则删除转换失败的记录
 		err = m.db.Delete(de).Error
 		if err != nil {
-			m.logger.Error("SetConvertError", zap.Error(err))
+			m.logger.Errorf("SetConvertError", zap.Error(err))
 			return err
 		}
 		return nil
@@ -36,7 +36,7 @@ func (m *DBModel) SetDocumentConvertError(documentId int64, err error) error {
 		// 如果不存在，则创建
 		err = m.Create(de)
 		if err != nil {
-			m.logger.Error("SetConvertError", zap.Error(err))
+			m.logger.Errorf("SetConvertError", zap.Error(err))
 		}
 		return err
 	}
@@ -53,7 +53,7 @@ func (m *DBModel) GetConvertError(documentIds ...int64) (errors map[int64]string
 	var des []DocumentError
 	err := m.db.Model(&DocumentError{}).Where("id IN (?)", documentIds).Find(&des).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConvertError", zap.Error(err))
+		m.logger.Errorf("GetConvertError", zap.Error(err))
 		return
 	}
 

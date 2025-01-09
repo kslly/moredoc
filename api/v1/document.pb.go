@@ -1688,12 +1688,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type DocumentAPIClient interface {
-	// 针对首页的文档查询
-	ListDocumentForHome(ctx context.Context, in *ListDocumentForHomeRequest, opts ...grpc.CallOption) (*ListDocumentForHomeResponse, error)
 	// 设置文档推荐
 	SetDocumentRecommend(ctx context.Context, in *SetDocumentRecommendRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// 创建文档
-	CreateDocument(ctx context.Context, in *CreateDocumentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 更新文档
 	UpdateDocument(ctx context.Context, in *Document, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 更新文档文本内容
@@ -1708,8 +1704,6 @@ type DocumentAPIClient interface {
 	DownloadDocument(ctx context.Context, in *Document, opts ...grpc.CallOption) (*DownloadDocumentReply, error)
 	// 批量审核文档
 	CheckDocument(ctx context.Context, in *CheckDocumentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// 文档列表查询
-	ListDocument(ctx context.Context, in *ListDocumentRequest, opts ...grpc.CallOption) (*ListDocumentReply, error)
 	// 文档搜索
 	SearchDocument(ctx context.Context, in *SearchDocumentRequest, opts ...grpc.CallOption) (*SearchDocumentReply, error)
 	// 设置文档评分
@@ -1734,14 +1728,7 @@ func NewDocumentAPIClient(cc *grpc.ClientConn) DocumentAPIClient {
 	return &documentAPIClient{cc}
 }
 
-func (c *documentAPIClient) ListDocumentForHome(ctx context.Context, in *ListDocumentForHomeRequest, opts ...grpc.CallOption) (*ListDocumentForHomeResponse, error) {
-	out := new(ListDocumentForHomeResponse)
-	err := c.cc.Invoke(ctx, "/api.v1.DocumentAPI/ListDocumentForHome", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
+
 
 func (c *documentAPIClient) SetDocumentRecommend(ctx context.Context, in *SetDocumentRecommendRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
@@ -1752,14 +1739,6 @@ func (c *documentAPIClient) SetDocumentRecommend(ctx context.Context, in *SetDoc
 	return out, nil
 }
 
-func (c *documentAPIClient) CreateDocument(ctx context.Context, in *CreateDocumentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/api.v1.DocumentAPI/CreateDocument", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 func (c *documentAPIClient) UpdateDocument(ctx context.Context, in *Document, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
@@ -1824,14 +1803,6 @@ func (c *documentAPIClient) CheckDocument(ctx context.Context, in *CheckDocument
 	return out, nil
 }
 
-func (c *documentAPIClient) ListDocument(ctx context.Context, in *ListDocumentRequest, opts ...grpc.CallOption) (*ListDocumentReply, error) {
-	out := new(ListDocumentReply)
-	err := c.cc.Invoke(ctx, "/api.v1.DocumentAPI/ListDocument", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 func (c *documentAPIClient) SearchDocument(ctx context.Context, in *SearchDocumentRequest, opts ...grpc.CallOption) (*SearchDocumentReply, error) {
 	out := new(SearchDocumentReply)
@@ -1898,12 +1869,8 @@ func (c *documentAPIClient) DownloadDocumentToBeReviewed(ctx context.Context, in
 
 // DocumentAPIServer is the server API for DocumentAPI service.
 type DocumentAPIServer interface {
-	// 针对首页的文档查询
-	ListDocumentForHome(context.Context, *ListDocumentForHomeRequest) (*ListDocumentForHomeResponse, error)
 	// 设置文档推荐
 	SetDocumentRecommend(context.Context, *SetDocumentRecommendRequest) (*emptypb.Empty, error)
-	// 创建文档
-	CreateDocument(context.Context, *CreateDocumentRequest) (*emptypb.Empty, error)
 	// 更新文档
 	UpdateDocument(context.Context, *Document) (*emptypb.Empty, error)
 	// 更新文档文本内容
@@ -1918,8 +1885,6 @@ type DocumentAPIServer interface {
 	DownloadDocument(context.Context, *Document) (*DownloadDocumentReply, error)
 	// 批量审核文档
 	CheckDocument(context.Context, *CheckDocumentRequest) (*emptypb.Empty, error)
-	// 文档列表查询
-	ListDocument(context.Context, *ListDocumentRequest) (*ListDocumentReply, error)
 	// 文档搜索
 	SearchDocument(context.Context, *SearchDocumentRequest) (*SearchDocumentReply, error)
 	// 设置文档评分
@@ -1940,15 +1905,10 @@ type DocumentAPIServer interface {
 type UnimplementedDocumentAPIServer struct {
 }
 
-func (*UnimplementedDocumentAPIServer) ListDocumentForHome(ctx context.Context, req *ListDocumentForHomeRequest) (*ListDocumentForHomeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListDocumentForHome not implemented")
-}
 func (*UnimplementedDocumentAPIServer) SetDocumentRecommend(ctx context.Context, req *SetDocumentRecommendRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetDocumentRecommend not implemented")
 }
-func (*UnimplementedDocumentAPIServer) CreateDocument(ctx context.Context, req *CreateDocumentRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateDocument not implemented")
-}
+
 func (*UnimplementedDocumentAPIServer) UpdateDocument(ctx context.Context, req *Document) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateDocument not implemented")
 }
@@ -1970,9 +1930,7 @@ func (*UnimplementedDocumentAPIServer) DownloadDocument(ctx context.Context, req
 func (*UnimplementedDocumentAPIServer) CheckDocument(ctx context.Context, req *CheckDocumentRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CheckDocument not implemented")
 }
-func (*UnimplementedDocumentAPIServer) ListDocument(ctx context.Context, req *ListDocumentRequest) (*ListDocumentReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListDocument not implemented")
-}
+
 func (*UnimplementedDocumentAPIServer) SearchDocument(ctx context.Context, req *SearchDocumentRequest) (*SearchDocumentReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchDocument not implemented")
 }
@@ -1999,24 +1957,6 @@ func RegisterDocumentAPIServer(s *grpc.Server, srv DocumentAPIServer) {
 	s.RegisterService(&_DocumentAPI_serviceDesc, srv)
 }
 
-func _DocumentAPI_ListDocumentForHome_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListDocumentForHomeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DocumentAPIServer).ListDocumentForHome(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.DocumentAPI/ListDocumentForHome",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DocumentAPIServer).ListDocumentForHome(ctx, req.(*ListDocumentForHomeRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _DocumentAPI_SetDocumentRecommend_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SetDocumentRecommendRequest)
 	if err := dec(in); err != nil {
@@ -2031,24 +1971,6 @@ func _DocumentAPI_SetDocumentRecommend_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DocumentAPIServer).SetDocumentRecommend(ctx, req.(*SetDocumentRecommendRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DocumentAPI_CreateDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateDocumentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DocumentAPIServer).CreateDocument(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.DocumentAPI/CreateDocument",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DocumentAPIServer).CreateDocument(ctx, req.(*CreateDocumentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2175,24 +2097,6 @@ func _DocumentAPI_CheckDocument_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DocumentAPIServer).CheckDocument(ctx, req.(*CheckDocumentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _DocumentAPI_ListDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListDocumentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(DocumentAPIServer).ListDocument(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.DocumentAPI/ListDocument",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DocumentAPIServer).ListDocument(ctx, req.(*ListDocumentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2328,16 +2232,8 @@ var _DocumentAPI_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*DocumentAPIServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListDocumentForHome",
-			Handler:    _DocumentAPI_ListDocumentForHome_Handler,
-		},
-		{
 			MethodName: "SetDocumentRecommend",
 			Handler:    _DocumentAPI_SetDocumentRecommend_Handler,
-		},
-		{
-			MethodName: "CreateDocument",
-			Handler:    _DocumentAPI_CreateDocument_Handler,
 		},
 		{
 			MethodName: "UpdateDocument",
@@ -2366,10 +2262,6 @@ var _DocumentAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CheckDocument",
 			Handler:    _DocumentAPI_CheckDocument_Handler,
-		},
-		{
-			MethodName: "ListDocument",
-			Handler:    _DocumentAPI_ListDocument_Handler,
 		},
 		{
 			MethodName: "SearchDocument",

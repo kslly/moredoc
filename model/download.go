@@ -32,13 +32,13 @@ func (m *DBModel) CreateDownload(download *Download) (err error) {
 
 	err = tx.Create(download).Error
 	if err != nil {
-		m.logger.Error("CreateDownload", zap.Error(err))
+		m.logger.Errorf("CreateDownload", zap.Error(err))
 		return
 	}
 
 	err = tx.Model(&Document{}).Where("id = ?", download.DocumentId).Update("download_count", gorm.Expr("download_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateDownload", zap.Error(err))
+		m.logger.Errorf("CreateDownload", zap.Error(err))
 		return
 	}
 
@@ -47,14 +47,14 @@ func (m *DBModel) CreateDownload(download *Download) (err error) {
 		// 下载该文档的用户扣除积分
 		err = tx.Model(&User{}).Where("id = ?", download.UserId).Update("credit_count", gorm.Expr("credit_count - ?", doc.Price)).Error
 		if err != nil {
-			m.logger.Error("CreateDownload", zap.Error(err))
+			m.logger.Errorf("CreateDownload", zap.Error(err))
 			return
 		}
 
 		// 文档的作者增加积分
 		err = tx.Model(&User{}).Where("id = ?", doc.UserId).Update("credit_count", gorm.Expr("credit_count + ?", doc.Price)).Error
 		if err != nil {
-			m.logger.Error("CreateDownload", zap.Error(err))
+			m.logger.Errorf("CreateDownload", zap.Error(err))
 			return
 		}
 	}
@@ -79,7 +79,7 @@ func (m *DBModel) GetDownloadList(opt *OptionGetList) (downloadList []*v1.Downlo
 	if opt.WithCount {
 		err = db.Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetDownloadList", zap.Error(err))
+			m.logger.Errorf("GetDownloadList", zap.Error(err))
 			return
 		}
 	}
@@ -92,7 +92,7 @@ func (m *DBModel) GetDownloadList(opt *OptionGetList) (downloadList []*v1.Downlo
 
 	err = db.Find(&downloadList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDownloadList", zap.Error(err))
+		m.logger.Errorf("GetDownloadList", zap.Error(err))
 	}
 	return
 }
@@ -102,17 +102,17 @@ func (m *DBModel) GetDownloadList(opt *OptionGetList) (downloadList []*v1.Downlo
 func (m *DBModel) CanIFreeDownload(userId, documentId int64) bool {
 	var download Download
 	m.db.Where("user_id = ? and document_id = ? and is_pay = ?", userId, documentId, 1).Last(&download)
-	m.logger.Debug("CanIFreeDownload", zap.Any("Last Download", download))
+	m.logger.Debugf("CanIFreeDownload", zap.Any("Last Download", download))
 	if download.Id == 0 {
 		return false
 	}
 
 	cfg := m.GetConfigOfDownload(ConfigDownloadFreeDownloadDuration)
-	m.logger.Debug("CanIFreeDownload", zap.Int32("FreeDownloadDuration", cfg.FreeDownloadDuration))
+	m.logger.Debugf("CanIFreeDownload", zap.Int32("FreeDownloadDuration", cfg.FreeDownloadDuration))
 	if cfg.FreeDownloadDuration <= 0 {
 		return true
 	}
-	m.logger.Debug("CanIFreeDownload", zap.Any("CreatedAt", download.CreatedAt), zap.Time("Now", time.Now()), zap.Time("After", download.CreatedAt.Add(time.Duration(cfg.FreeDownloadDuration)*time.Hour*24)))
+	m.logger.Debugf("CanIFreeDownload", zap.Any("CreatedAt", download.CreatedAt), zap.Time("Now", time.Now()), zap.Time("After", download.CreatedAt.Add(time.Duration(cfg.FreeDownloadDuration)*time.Hour*24)))
 	return download.CreatedAt.Add(time.Duration(cfg.FreeDownloadDuration) * time.Hour * 24).After(time.Now())
 }
 
@@ -123,7 +123,7 @@ func (m *DBModel) CountDownloadTodayForUser(userId int64) (total int64) {
 	}
 	err := m.db.Model(&Download{}).Where("user_id = ?", userId).Where("created_at >= ?", time.Now().Format("2006-01-02")).Count(&total).Error
 	if err != nil {
-		m.logger.Error("CountDownloadToday", zap.Error(err))
+		m.logger.Errorf("CountDownloadToday", zap.Error(err))
 	}
 	return
 }
@@ -135,7 +135,7 @@ func (m *DBModel) CountDownloadTodayForIP(ip string) (total int64) {
 	}
 	err := m.db.Model(&Download{}).Where("ip = ?", ip).Where("created_at >= ?", time.Now().Format("2006-01-02")).Count(&total).Error
 	if err != nil {
-		m.logger.Error("CountDownloadTodayForIP", zap.Error(err))
+		m.logger.Errorf("CountDownloadTodayForIP", zap.Error(err))
 	}
 	return
 }

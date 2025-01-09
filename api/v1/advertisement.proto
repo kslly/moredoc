@@ -75,13 +75,6 @@ service AdvertisementAPI {
     };
   }
 
-  rpc GetAdvertisementByPosition(GetAdvertisementByPositionRequest)
-      returns (ListAdvertisementReply) {
-    option (google.api.http) = {
-      get : '/api/v1/advertisement/position',
-    };
-  }
-
   rpc ListAdvertisement(ListAdvertisementRequest)
       returns (ListAdvertisementReply) {
     option (google.api.http) = {

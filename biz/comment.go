@@ -6,6 +6,8 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"moredoc/util/captcha"
 
@@ -19,11 +21,11 @@ import (
 type CommentAPIService struct {
 	pb.UnimplementedCommentAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewCommentAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *CommentAPIService) {
-	return &CommentAPIService{dbModel: dbModel, logger: logger.Named("CommentAPIService")}
+func NewCommentAPIService(dbModel *model.DBModel, logger logger.Logger) (service *CommentAPIService) {
+	return &CommentAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *CommentAPIService) checkLogin(ctx context.Context) (*auth.UserClaims, error) {
@@ -59,7 +61,7 @@ func (s *CommentAPIService) CreateComment(ctx context.Context, req *pb.CreateCom
 	comment := &model.Comment{}
 	err = util.CopyStruct(req, comment)
 	if err != nil {
-		s.logger.Error("CreateDocument", zap.Error(err))
+		s.logger.Errorf("CreateDocument", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "发布评论失败："+err.Error())
 	}
 
@@ -80,7 +82,7 @@ func (s *CommentAPIService) CreateComment(ctx context.Context, req *pb.CreateCom
 		err = s.dbModel.CreateDocumentComment(comment)
 	}
 	if err != nil {
-		s.logger.Error("CreateComment", zap.Error(err))
+		s.logger.Errorf("CreateComment", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "发布评论失败："+err.Error())
 	}
 
@@ -94,7 +96,7 @@ func (s *CommentAPIService) UpdateComment(ctx context.Context, req *pb.Comment) 
 		return nil, err
 	}
 
-	s.logger.Debug("UpdateComment", zap.Any("user", userClaims), zap.Any("req", req))
+	s.logger.Debugf("UpdateComment", zap.Any("user", userClaims), zap.Any("req", req))
 
 	// 只允许更新评论状态和内容
 	comment := &model.Comment{}
@@ -133,7 +135,7 @@ func (s *CommentAPIService) GetComment(ctx context.Context, req *pb.GetCommentRe
 	if err != nil {
 		return nil, err
 	}
-	s.logger.Debug("GetComment", zap.Any("req", req))
+	s.logger.Debugf("GetComment", zap.Any("req", req))
 	comment := &model.Comment{}
 	err = s.dbModel.GetByID(req.Id, comment)
 	if err != nil {
@@ -171,11 +173,11 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 	}
 
 	if len(req.Type) > 0 {
-		opt.QueryIn["type"] = util.Slice2Interface(req.Type)
+		opt.QueryIn["type"] = cvt.ToArray(req.Type)
 	}
 
 	if len(req.ParentId) > 0 {
-		opt.QueryIn["parent_id"] = util.Slice2Interface(req.ParentId)
+		opt.QueryIn["parent_id"] = cvt.ToArray(req.ParentId)
 	}
 
 	if haveAccess && req.Wd != "" {
@@ -185,7 +187,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 	if (isLogin && req.UserId == userClaims.UserId) || haveAccess {
 		delete(opt.QueryIn, "status")
 		if len(req.Status) > 0 {
-			opt.QueryIn["status"] = util.Slice2Interface(req.Status)
+			opt.QueryIn["status"] = cvt.ToArray(req.Status)
 		}
 	}
 
@@ -227,7 +229,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 		users, _, _ := s.dbModel.GetUserList(&model.OptionGetList{
 			SelectFields: model.UserPublicFields,
 			WithCount:    false,
-			QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(userIds)},
+			QueryIn:      map[string][]interface{}{"id": cvt.ToArray(userIds)},
 		})
 
 		for _, user := range users {
@@ -243,7 +245,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 			documents, _, _ := s.dbModel.GetDocumentList(&model.OptionGetList{
 				SelectFields: []string{"id", "title", "uuid"},
 				WithCount:    false,
-				QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(documentIds)},
+				QueryIn:      map[string][]interface{}{"id": cvt.ToArray(documentIds)},
 			})
 
 			for _, document := range documents {
@@ -259,7 +261,7 @@ func (s *CommentAPIService) ListComment(ctx context.Context, req *pb.ListComment
 			articles, _, _ := s.dbModel.GetArticleList(&model.OptionGetArticleList{
 				SelectFields: []string{"id", "title", "identifier"},
 				WithCount:    false,
-				QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(articleIds)},
+				QueryIn:      map[string][]interface{}{"id": cvt.ToArray(articleIds)},
 			})
 
 			for _, article := range articles {

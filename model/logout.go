@@ -26,7 +26,7 @@ func (m *DBModel) Logout(userId int64, uuid string, expiredAt int64) {
 		ExpiredAt: expiredAt,
 	})
 	if err != nil {
-		m.logger.Error("SetLogout", zap.Error(err))
+		m.logger.Errorf("SetLogout", zap.Error(err))
 	}
 }
 
@@ -43,7 +43,7 @@ func (m *DBModel) IsInvalidToken(uuid string) bool {
 	logout := &Logout{}
 	err := m.db.Select("id").Where("uuid = ?", uuid).First(logout).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("IsInvalidToken", zap.Error(err))
+		m.logger.Errorf("IsInvalidToken", zap.Error(err))
 		return true
 	}
 

@@ -451,8 +451,6 @@ type BannerAPIClient interface {
 	DeleteBanner(ctx context.Context, in *DeleteBannerRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 查询轮播图
 	GetBanner(ctx context.Context, in *GetBannerRequest, opts ...grpc.CallOption) (*Banner, error)
-	// 轮播图列表
-	ListBanner(ctx context.Context, in *ListBannerRequest, opts ...grpc.CallOption) (*ListBannerReply, error)
 }
 
 type bannerAPIClient struct {
@@ -499,14 +497,7 @@ func (c *bannerAPIClient) GetBanner(ctx context.Context, in *GetBannerRequest, o
 	return out, nil
 }
 
-func (c *bannerAPIClient) ListBanner(ctx context.Context, in *ListBannerRequest, opts ...grpc.CallOption) (*ListBannerReply, error) {
-	out := new(ListBannerReply)
-	err := c.cc.Invoke(ctx, "/api.v1.BannerAPI/ListBanner", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
+
 
 // BannerAPIServer is the server API for BannerAPI service.
 type BannerAPIServer interface {
@@ -518,8 +509,6 @@ type BannerAPIServer interface {
 	DeleteBanner(context.Context, *DeleteBannerRequest) (*emptypb.Empty, error)
 	// 查询轮播图
 	GetBanner(context.Context, *GetBannerRequest) (*Banner, error)
-	// 轮播图列表
-	ListBanner(context.Context, *ListBannerRequest) (*ListBannerReply, error)
 }
 
 // UnimplementedBannerAPIServer can be embedded to have forward compatible implementations.
@@ -538,9 +527,7 @@ func (*UnimplementedBannerAPIServer) DeleteBanner(ctx context.Context, req *Dele
 func (*UnimplementedBannerAPIServer) GetBanner(ctx context.Context, req *GetBannerRequest) (*Banner, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBanner not implemented")
 }
-func (*UnimplementedBannerAPIServer) ListBanner(ctx context.Context, req *ListBannerRequest) (*ListBannerReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListBanner not implemented")
-}
+
 
 func RegisterBannerAPIServer(s *grpc.Server, srv BannerAPIServer) {
 	s.RegisterService(&_BannerAPI_serviceDesc, srv)
@@ -618,23 +605,7 @@ func _BannerAPI_GetBanner_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BannerAPI_ListBanner_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListBannerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BannerAPIServer).ListBanner(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.BannerAPI/ListBanner",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BannerAPIServer).ListBanner(ctx, req.(*ListBannerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
+
 
 var _BannerAPI_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.v1.BannerAPI",
@@ -655,10 +626,6 @@ var _BannerAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetBanner",
 			Handler:    _BannerAPI_GetBanner_Handler,
-		},
-		{
-			MethodName: "ListBanner",
-			Handler:    _BannerAPI_ListBanner_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

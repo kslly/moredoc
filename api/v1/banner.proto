@@ -83,11 +83,4 @@ service BannerAPI {
       get : '/api/v1/banner',
     };
   }
-
-  // 轮播图列表
-  rpc ListBanner(ListBannerRequest) returns (ListBannerReply) {
-    option (google.api.http) = {
-      get : '/api/v1/banner/list',
-    };
-  }
 }

@@ -28,13 +28,13 @@ type UserGroup struct {
 func (m *DBModel) GetUserGroupList(opt *OptionGetList) (userGroupList []UserGroup, total int64, err error) {
 	db, total, err := m.queryCond(TableUserGroup, &UserGroup{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
 	err = db.Find(&userGroupList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetUserGroupList", zap.Error(err))
+		m.logger.Errorf("GetUserGroupList", zap.Error(err))
 	}
 	return
 }

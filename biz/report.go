@@ -6,9 +6,10 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -18,11 +19,11 @@ import (
 type ReportAPIService struct {
 	pb.UnimplementedReportAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewReportAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *ReportAPIService) {
-	return &ReportAPIService{dbModel: dbModel, logger: logger.Named("ReportAPIService")}
+func NewReportAPIService(dbModel *model.DBModel, logger logger.Logger) (service *ReportAPIService) {
+	return &ReportAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *ReportAPIService) checkLogin(ctx context.Context) (*auth.UserClaims, error) {
@@ -107,7 +108,7 @@ func (s *ReportAPIService) ListReport(ctx context.Context, req *pb.ListReportReq
 	}
 
 	if len(req.Status) > 0 {
-		opt.QueryIn["status"] = util.Slice2Interface(req.Status)
+		opt.QueryIn["status"] = cvt.ToArray(req.Status)
 	}
 
 	reports, total, err := s.dbModel.GetReportList(opt)

@@ -98,14 +98,14 @@ func (m *DBModel) UpdateDocument(document *Document, categoryId []int64, updateF
 	if len(oldDocCategoryIds) > 0 {
 		err = sess.Where("document_id = ?", document.Id).Delete(modelDocumentCategory).Error
 		if err != nil {
-			m.logger.Error("Delete DocumentCategory", zap.Error(err))
+			m.logger.Errorf("Delete DocumentCategory", zap.Error(err))
 			return
 		}
 
 		// 更新分类统计
 		err = sess.Model(modelCategory).Where("id in (?)", oldDocCategoryIds).Update("doc_count", gorm.Expr("doc_count - ?", 1)).Error
 		if err != nil {
-			m.logger.Error("Update doc_count--", zap.Error(err))
+			m.logger.Errorf("Update doc_count--", zap.Error(err))
 			return
 		}
 	}
@@ -118,16 +118,16 @@ func (m *DBModel) UpdateDocument(document *Document, categoryId []int64, updateF
 	}
 
 	if len(newDocCategories) > 0 {
-		m.logger.Debug("newDocCategories", zap.Any("newDocCategories", newDocCategories))
+		m.logger.Debugf("newDocCategories", zap.Any("newDocCategories", newDocCategories))
 		err = sess.Create(&newDocCategories).Error
 		if err != nil {
-			m.logger.Error("Create New Category", zap.Error(err))
+			m.logger.Errorf("Create New Category", zap.Error(err))
 			return
 		}
 
 		err = sess.Model(modelCategory).Where("id in (?)", categoryId).Update("doc_count", gorm.Expr("doc_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("Update doc_count++", zap.Error(err))
+			m.logger.Errorf("Update doc_count++", zap.Error(err))
 			return
 		}
 	}
@@ -202,7 +202,7 @@ func (m *DBModel) DeleteDocument(ids []int64, deletedUserId int64, deepDelete ..
 	if len(deepDelete) > 0 && deepDelete[0] { // 标记附件为删除状态
 		err = sess.Where("type = ? and type_id in (?)", AttachmentTypeDocument, ids).Delete(&Attachment{}).Error
 		if err != nil {
-			m.logger.Error("DeleteDocument", zap.Error(err))
+			m.logger.Errorf("DeleteDocument", zap.Error(err))
 			return
 		}
 	}
@@ -211,14 +211,14 @@ func (m *DBModel) DeleteDocument(ids []int64, deletedUserId int64, deepDelete ..
 		if doc.DeletedAt == nil {
 			err = sess.Model(modelUser).Where("id = ?", doc.UserId).Update("doc_count", gorm.Expr("doc_count - ?", 1)).Error
 			if err != nil {
-				m.logger.Error("DeleteDocument", zap.Error(err))
+				m.logger.Errorf("DeleteDocument", zap.Error(err))
 				return
 			}
 
 			if cateIds, ok := docCateMap[doc.Id]; ok && len(cateIds) > 0 {
 				err = sess.Model(modelCategory).Where("id in (?)", cateIds).Update("doc_count", gorm.Expr("doc_count - ?", 1)).Error
 				if err != nil {
-					m.logger.Error("DeleteDocument", zap.Error(err))
+					m.logger.Errorf("DeleteDocument", zap.Error(err))
 					return
 				}
 			}
@@ -227,14 +227,14 @@ func (m *DBModel) DeleteDocument(ids []int64, deletedUserId int64, deepDelete ..
 		if len(deepDelete) > 0 && deepDelete[0] { // 彻底删除
 			err = sess.Unscoped().Delete(&doc).Error
 			if err != nil {
-				m.logger.Error("DeleteDocument", zap.Error(err))
+				m.logger.Errorf("DeleteDocument", zap.Error(err))
 				return
 			}
 
 			// 关联的分类也需要删除
 			err = sess.Unscoped().Where("document_id = ?", doc.Id).Delete(modelDocumentCategory).Error
 			if err != nil {
-				m.logger.Error("DeleteDocument", zap.Error(err))
+				m.logger.Errorf("DeleteDocument", zap.Error(err))
 				return
 			}
 			continue
@@ -246,7 +246,7 @@ func (m *DBModel) DeleteDocument(ids []int64, deletedUserId int64, deepDelete ..
 			"deleted_user_id": deletedUserId,
 		}).Error
 		if err != nil {
-			m.logger.Error("DeleteDocument", zap.Error(err))
+			m.logger.Errorf("DeleteDocument", zap.Error(err))
 			return
 		}
 
@@ -262,14 +262,14 @@ func (m *DBModel) DeleteDocument(ids []int64, deletedUserId int64, deepDelete ..
 			dynamic.Content += fmt.Sprintf("，扣除了 %d %s", score, cfgScore.CreditName)
 			err = sess.Model(modelUser).Where("id = ?", doc.UserId).Update("credit_count", gorm.Expr("credit_count - ?", score)).Error
 			if err != nil {
-				m.logger.Error("DeleteDocument", zap.Error(err))
+				m.logger.Errorf("DeleteDocument", zap.Error(err))
 				return
 			}
 		}
 
 		err = sess.Create(dynamic).Error
 		if err != nil {
-			m.logger.Error("DeleteDocument", zap.Error(err))
+			m.logger.Errorf("DeleteDocument", zap.Error(err))
 			return
 		}
 	}
@@ -305,14 +305,14 @@ func (m *DBModel) RecoverRecycleDocument(documentId []int64) (err error) {
 	}).Error
 
 	if err != nil {
-		m.logger.Error("RecoverRecycleDocument", zap.Error(err))
+		m.logger.Errorf("RecoverRecycleDocument", zap.Error(err))
 		return
 	}
 
 	for _, docCate := range documentCategories {
 		err = sess.Model(modelCategory).Where("id = ?", docCate.CategoryId).Update("doc_count", gorm.Expr("doc_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("RecoverRecycleDocument", zap.Error(err))
+			m.logger.Errorf("RecoverRecycleDocument", zap.Error(err))
 			return
 		}
 	}
@@ -320,7 +320,7 @@ func (m *DBModel) RecoverRecycleDocument(documentId []int64) (err error) {
 	for _, doc := range docs {
 		err = sess.Model(modelUser).Where("id = ?", doc.UserId).Update("doc_count", gorm.Expr("doc_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("RecoverRecycleDocument", zap.Error(err))
+			m.logger.Errorf("RecoverRecycleDocument", zap.Error(err))
 			return
 		}
 	}
@@ -332,7 +332,7 @@ func (m *DBModel) ClearRecycleDocument() (err error) {
 	var docs []Document
 	err = m.db.Unscoped().Select("id").Where("deleted_at is not null").Find(&docs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("ClearRecycleDocument", zap.Error(err))
+		m.logger.Errorf("ClearRecycleDocument", zap.Error(err))
 		return
 	}
 
@@ -367,14 +367,14 @@ func (m *DBModel) CreateDocuments(documents []Document, categoryIds []int64) (do
 		Where("id in ?", categoryIds).
 		Update("doc_count", gorm.Expr("doc_count + ?", docCount)).Error
 	if err != nil {
-		m.logger.Error("CreateDocuments", zap.Error(err))
+		m.logger.Errorf("CreateDocuments", zap.Error(err))
 		return
 	}
 
 	// 2. 批量创建文档
 	err = sess.Create(documents).Error
 	if err != nil {
-		m.logger.Error("CreateDocuments", zap.Error(err))
+		m.logger.Errorf("CreateDocuments", zap.Error(err))
 		return
 	}
 	docs = documents
@@ -391,21 +391,21 @@ func (m *DBModel) CreateDocuments(documents []Document, categoryIds []int64) (do
 	}
 	err = sess.Create(docCates).Error
 	if err != nil {
-		m.logger.Error("CreateDocuments", zap.Error(err))
+		m.logger.Errorf("CreateDocuments", zap.Error(err))
 		return
 	}
 
 	// 用户文档数增加
 	err = sess.Model(&User{}).Where("id = ?", documents[0].UserId).Update("doc_count", gorm.Expr("doc_count + ?", docCount)).Error
 	if err != nil {
-		m.logger.Error("CreateDocuments", zap.Error(err))
+		m.logger.Errorf("CreateDocuments", zap.Error(err))
 		return
 	}
 
 	// 奖励的数量
 	awardCount := docCount
 	cfg := m.GetConfigOfScore()
-	m.logger.Debug("CreateDocuments", zap.Any("GetConfigOfScore", cfg))
+	m.logger.Debugf("CreateDocuments", zap.Any("GetConfigOfScore", cfg))
 	if cfg.UploadDocumentLimit > 0 {
 		var todayUploadCount int64
 		sess.Model(&Document{}).Where("user_id = ? and created_at >= ?", documents[0].UserId, time.Now().Format("2006-01-02")).Count(&todayUploadCount)
@@ -416,11 +416,11 @@ func (m *DBModel) CreateDocuments(documents []Document, categoryIds []int64) (do
 			awardCount = int(cfg.UploadDocumentLimit + int32(docCount) - int32(todayUploadCount))
 			creditCount = cfg.UploadDocument * int32(awardCount)
 		}
-		m.logger.Debug("CreateDocuments", zap.Int32("creditCount", creditCount))
+		m.logger.Debugf("CreateDocuments", zap.Int32("creditCount", creditCount))
 		if creditCount > 0 {
 			err = sess.Model(&User{}).Where("id = ?", documents[0].UserId).Update("credit_count", gorm.Expr("credit_count + ?", creditCount)).Error
 			if err != nil {
-				m.logger.Error("CreateDocuments", zap.Error(err))
+				m.logger.Errorf("CreateDocuments", zap.Error(err))
 				return
 			}
 		}
@@ -445,7 +445,7 @@ func (m *DBModel) CreateDocuments(documents []Document, categoryIds []int64) (do
 	}
 	err = sess.Create(dynamics).Error
 	if err != nil {
-		m.logger.Error("CreateDocuments", zap.Error(err))
+		m.logger.Errorf("CreateDocuments", zap.Error(err))
 		return
 	}
 	return
@@ -468,7 +468,7 @@ func (m *DBModel) GetDocumentStatusConvertedByHash(hash []string) (hashMapDocume
 	var attachemnts []Attachment
 	err := m.db.Raw(sql, hash, DocumentStatusConverted).Find(&attachemnts).Error
 	if err != nil {
-		m.logger.Error("GetDocumentStatusConvertedByHash", zap.Error(err))
+		m.logger.Errorf("GetDocumentStatusConvertedByHash", zap.Error(err))
 		return
 	}
 
@@ -501,7 +501,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 	err = m.db.Where("status in ?", []int{DocumentStatusPending, DocumentStatusRePending}).First(&document).Error
 	if err != nil {
 		if err != gorm.ErrRecordNotFound {
-			m.logger.Error("ConvertDocument", zap.Error(err))
+			m.logger.Errorf("ConvertDocument", zap.Error(err))
 		}
 		return
 	}
@@ -519,7 +519,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 	if attachment.Id == 0 { // 附件不存在
 		m.SetDocumentStatus([]int64{document.Id}, DocumentStatusFailed)
 		if err != nil {
-			m.logger.Error("ConvertDocument", zap.Error(err))
+			m.logger.Errorf("ConvertDocument", zap.Error(err))
 		}
 		return
 	}
@@ -532,7 +532,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 		_, errCover := os.Stat(cover)
 		hashMapDocs := m.GetDocumentStatusConvertedByHash([]string{attachment.Hash}) // 文档hash
 		if len(hashMapDocs) > 0 && errCover == nil {                                 // 双重确认文档是否已转换成功：1. 存在相同hash的已转换的文档，2. 存在封面图片
-			m.logger.Info("ConvertDocument", zap.Bool("EnableConvertRepeatedDocument", cfg.EnableConvertRepeatedDocument), zap.String("hash", attachment.Hash), zap.Any("hashMapDocs", hashMapDocs))
+			m.logger.Infof("ConvertDocument", zap.Bool("EnableConvertRepeatedDocument", cfg.EnableConvertRepeatedDocument), zap.String("hash", attachment.Hash), zap.Any("hashMapDocs", hashMapDocs))
 			// 已有文档转换成功，将hash相同的文档相关数据迁移到当前文档
 			sql := " UPDATE `%s` SET `description`= ? , `enable_gzip` = ?, `width` = ?, `height`= ?, `preview`= ?, `pages` = ?, `status` = ? WHERE status in ? and id in (select type_id from `%s` where `hash` = ? and `type` = ?)"
 			sql = fmt.Sprintf(sql, TableDocument, TableAttachment)
@@ -544,7 +544,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 					doc.Description, doc.EnableGZIP, doc.Width, doc.Height, doc.Preview, doc.Pages, DocumentStatusConverted, []int{DocumentStatusPending, DocumentStatusConverting, DocumentStatusFailed}, hash, AttachmentTypeDocument,
 				).Error
 				if err != nil {
-					m.logger.Error("ConvertDocument", zap.Error(err))
+					m.logger.Errorf("ConvertDocument", zap.Error(err))
 					return
 				}
 			}
@@ -562,7 +562,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 	dstPDF, err := cvt.ConvertToPDF(localFile)
 	if err != nil {
 		m.SetDocumentStatus([]int64{document.Id}, DocumentStatusFailed)
-		m.logger.Error("ConvertDocument", zap.Error(err))
+		m.logger.Errorf("ConvertDocument", zap.Error(err))
 		return
 	}
 	document.Pages, _ = cvt.CountPDFPages(dstPDF)
@@ -584,7 +584,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 	// PDF截取第一章图片作为封面(封面不是最重要的，期间出现错误，不影响文档转换)
 	pages, err := cvt.ConvertPDFToPNG(dstPDF, 1, 1)
 	if err != nil {
-		m.logger.Error("get pdf cover", zap.Error(err))
+		m.logger.Errorf("get pdf cover", zap.Error(err))
 	}
 
 	if len(pages) > 0 {
@@ -611,7 +611,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 	})
 	if err != nil {
 		m.SetDocumentStatus([]int64{document.Id}, DocumentStatusFailed)
-		m.logger.Error("ConvertDocument", zap.Error(err))
+		m.logger.Errorf("ConvertDocument", zap.Error(err))
 		return
 	}
 
@@ -622,10 +622,10 @@ func (m *DBModel) ConvertDocument() (err error) {
 
 	for _, page := range pages {
 		dst := fmt.Sprintf(baseDir+"/%d%s", page.PageNum, ext)
-		m.logger.Debug("ConvertDocument CopyFile", zap.String("src", page.PagePath), zap.String("dst", dst))
+		m.logger.Debugf("ConvertDocument CopyFile", zap.String("src", page.PagePath), zap.String("dst", dst))
 		errCopy := util.CopyFile(page.PagePath, dst)
 		if errCopy != nil {
-			m.logger.Error("ConvertDocument CopyFile", zap.Error(errCopy))
+			m.logger.Errorf("ConvertDocument CopyFile", zap.Error(errCopy))
 		}
 	}
 
@@ -633,7 +633,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 	textFile, errPdf2text := cvt.ConvertPDFToTxt(dstPDF)
 	if errPdf2text != nil {
 		// 只记录错误。不影响文档转换
-		m.logger.Error("ConvertPDFToTxt", zap.Error(errPdf2text))
+		m.logger.Errorf("ConvertPDFToTxt", zap.Error(errPdf2text))
 	}
 
 	if document.Description == "" {
@@ -643,7 +643,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 			replacer := strings.NewReplacer("\r", " ", "\n", " ", "\t", " ")
 			contentStr = strings.TrimSpace(replacer.Replace(contentStr))
 			if errContent := m.SetAttachmentContentByType(AttachmentTypeDocument, document.Id, []byte(contentStr)); errContent != nil {
-				m.logger.Error("SetAttachmentContentByType", zap.Error(errContent))
+				m.logger.Errorf("SetAttachmentContentByType", zap.Error(errContent))
 			}
 			document.Description = util.Substr(contentStr, 255)
 		}
@@ -656,7 +656,7 @@ func (m *DBModel) ConvertDocument() (err error) {
 		"enable_gzip", "preview_ext").Where("id = ?", document.Id).Updates(document).Error
 	if err != nil {
 		m.SetDocumentStatus([]int64{document.Id}, DocumentStatusFailed)
-		m.logger.Error("ConvertDocument", zap.Error(err))
+		m.logger.Errorf("ConvertDocument", zap.Error(err))
 	}
 	return
 }
@@ -681,7 +681,7 @@ func (m *DBModel) SetDocumentRecommend(documentIds []int64, typ int32) (err erro
 		err = db.Update("recommend_at", time.Now()).Error
 	}
 	if err != nil {
-		m.logger.Error("SetDocumentRecommend", zap.Error(err))
+		m.logger.Errorf("SetDocumentRecommend", zap.Error(err))
 	}
 	return
 }
@@ -703,7 +703,7 @@ func (m *DBModel) SetDocumentsCategory(documentId, categoryId []int64) (err erro
 		for _, cate := range docCates {
 			err = tx.Model(&Category{}).Where("id = ?", cate.CategoryId).Update("doc_count", gorm.Expr("doc_count - ?", 1)).Error
 			if err != nil {
-				m.logger.Error("SetDocumentsCategory", zap.Error(err))
+				m.logger.Errorf("SetDocumentsCategory", zap.Error(err))
 				return
 			}
 		}
@@ -711,7 +711,7 @@ func (m *DBModel) SetDocumentsCategory(documentId, categoryId []int64) (err erro
 		// 2. 删除旧的分类
 		err = tx.Model(&DocumentCategory{}).Where("document_id = ?", id).Delete(&DocumentCategory{}).Error
 		if err != nil {
-			m.logger.Error("SetDocumentsCategory", zap.Error(err))
+			m.logger.Errorf("SetDocumentsCategory", zap.Error(err))
 			return
 		}
 
@@ -725,14 +725,14 @@ func (m *DBModel) SetDocumentsCategory(documentId, categoryId []int64) (err erro
 		}
 		err = tx.Create(&docCates).Error
 		if err != nil {
-			m.logger.Error("SetDocumentsCategory", zap.Error(err))
+			m.logger.Errorf("SetDocumentsCategory", zap.Error(err))
 			return
 		}
 
 		// 4. 更新文档分类统计
 		err = tx.Model(&Category{}).Where("id in (?)", categoryId).Update("doc_count", gorm.Expr("doc_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("SetDocumentsCategory", zap.Error(err))
+			m.logger.Errorf("SetDocumentsCategory", zap.Error(err))
 			return
 		}
 	}
@@ -755,7 +755,7 @@ func (m *DBModel) GetDefaultDocumentStatus(userId int64) (status int) {
 		"left join "+TableUserGroup+" ug on g.id=ug.group_id",
 	).Where("ug.user_id = ?", userId).Find(&group)
 
-	m.logger.Debug("GetDefaultDocumentStatus", zap.Any("group", group))
+	m.logger.Debugf("GetDefaultDocumentStatus", zap.Any("group", group))
 
 	if group.Id > 0 && !group.EnableDocumentReview {
 		status = DocumentStatusPending // 待转换
@@ -773,7 +773,7 @@ func (m *DBModel) checkAndUpdateDocumentUUID() {
 		var documents []Document
 		err := m.db.Unscoped().Select("id").Limit(size).Where("uuid IS NULL").Find(&documents).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
-			m.logger.Error("updateDocumentUUID", zap.Error(err))
+			m.logger.Errorf("updateDocumentUUID", zap.Error(err))
 			return
 		}
 		if len(documents) == 0 {
@@ -784,7 +784,7 @@ func (m *DBModel) checkAndUpdateDocumentUUID() {
 			doc.UUID = util.GenDocumentMD5UUID()
 			err = tx.Unscoped().Model(modelDocument).Where("id = ?", doc.Id).Update("uuid", doc.UUID).Error
 			if err != nil {
-				m.logger.Error("updateDocumentUUID", zap.Error(err))
+				m.logger.Errorf("updateDocumentUUID", zap.Error(err))
 				tx.Rollback()
 				return
 			}
@@ -796,7 +796,7 @@ func (m *DBModel) checkAndUpdateDocumentUUID() {
 	var uuids []string
 	err := m.db.Unscoped().Model(modelDocument).Select("uuid").Group("uuid").Having("count(uuid) > 1").Pluck("uuid", &uuids).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("updateDocumentUUID", zap.Error(err))
+		m.logger.Errorf("updateDocumentUUID", zap.Error(err))
 		return
 	}
 	if len(uuids) == 0 {
@@ -806,13 +806,13 @@ func (m *DBModel) checkAndUpdateDocumentUUID() {
 		var doc Document
 		err = m.db.Unscoped().Model(modelDocument).Where("uuid = ?", uuid).First(&doc).Error
 		if err != nil {
-			m.logger.Error("updateDocumentUUID", zap.Error(err))
+			m.logger.Errorf("updateDocumentUUID", zap.Error(err))
 			return
 		}
 		doc.UUID = util.GenDocumentMD5UUID()
 		err = m.db.Unscoped().Model(modelDocument).Where("id = ?", doc.Id).Update("uuid", doc.UUID).Error
 		if err != nil {
-			m.logger.Error("updateDocumentUUID", zap.Error(err))
+			m.logger.Errorf("updateDocumentUUID", zap.Error(err))
 			return
 		}
 	}

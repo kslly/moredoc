@@ -34,7 +34,7 @@ type Category struct {
 func (m *DBModel) CreateCategory(category *Category) (err error) {
 	err = m.Create(category)
 	if err != nil {
-		m.logger.Error("CreateCategory", zap.Error(err))
+		m.logger.Errorf("CreateCategory", zap.Error(err))
 		return
 	}
 	if category.Cover != "" {
@@ -48,7 +48,7 @@ func (m *DBModel) UpdateCategory(category *Category, updateFields ...string) (er
 	var existCategory Category
 	err = m.db.Where("id = ?", category.Id).Find(&existCategory).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("UpdateCategory", zap.Error(err))
+		m.logger.Errorf("UpdateCategory", zap.Error(err))
 		return
 	}
 
@@ -93,14 +93,14 @@ func (m *DBModel) UpdateCategory(category *Category, updateFields ...string) (er
 				// 删除旧的分类关联
 				err = tx.Model(modelDocCate).Where("category_id in (?) and document_id in (?)", oldParentIds, documentIds).Delete(modelDocCate).Error
 				if err != nil {
-					m.logger.Error("UpdateCategory", zap.Error(err))
+					m.logger.Errorf("UpdateCategory", zap.Error(err))
 					return
 				}
 
 				// 更新旧的分类统计
 				err = tx.Model(modelCate).Where("id in (?)", oldParentIds).Update("doc_count", gorm.Expr("doc_count - ?", len(documentIds))).Error
 				if err != nil {
-					m.logger.Error("UpdateCategory", zap.Error(err))
+					m.logger.Errorf("UpdateCategory", zap.Error(err))
 					return
 				}
 			}
@@ -119,14 +119,14 @@ func (m *DBModel) UpdateCategory(category *Category, updateFields ...string) (er
 				// 创建新的分类关联
 				err = tx.Create(&newDocCates).Error
 				if err != nil {
-					m.logger.Error("UpdateCategory", zap.Error(err))
+					m.logger.Errorf("UpdateCategory", zap.Error(err))
 					return
 				}
 
 				// 更新新的分类统计
 				err = tx.Model(modelCate).Where("id in (?)", newParentIds).Update("doc_count", gorm.Expr("doc_count + ?", len(documentIds))).Error
 				if err != nil {
-					m.logger.Error("UpdateCategory", zap.Error(err))
+					m.logger.Errorf("UpdateCategory", zap.Error(err))
 					return
 				}
 			}
@@ -144,7 +144,7 @@ func (m *DBModel) UpdateCategory(category *Category, updateFields ...string) (er
 
 	err = db.Where("id = ?", category.Id).Updates(category).Error
 	if err != nil {
-		m.logger.Error("UpdateCategory", zap.Error(err))
+		m.logger.Errorf("UpdateCategory", zap.Error(err))
 		return
 	}
 
@@ -171,7 +171,7 @@ func (m *DBModel) GetCategoryByParentIdTitle(parentId int64, title string, typ i
 
 	err = db.First(&category).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetCategoryByParentIdTitle", zap.Error(err))
+		m.logger.Errorf("GetCategoryByParentIdTitle", zap.Error(err))
 		return
 	}
 	return
@@ -181,7 +181,7 @@ func (m *DBModel) GetCategoryByParentIdTitle(parentId int64, title string, typ i
 func (m *DBModel) GetCategoryList(opt *OptionGetList) (categoryList []Category, total int64, err error) {
 	db, total, err := m.queryCond(TableCategory, &Category{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -189,7 +189,7 @@ func (m *DBModel) GetCategoryList(opt *OptionGetList) (categoryList []Category, 
 
 	err = db.Order("parent_id asc, sort desc, title asc").Find(&categoryList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetCategoryList", zap.Error(err))
+		m.logger.Errorf("GetCategoryList", zap.Error(err))
 	}
 	return
 }
@@ -221,7 +221,7 @@ func (m *DBModel) GetCategoryParentIds(id int64) (ids []int64) {
 	var category Category
 	err := m.db.Model(&Category{}).Select("id", "parent_id").Where("id = ?", id).Find(&category).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetCategoryParentIds", zap.Error(err), zap.Int64("id", id))
+		m.logger.Errorf("GetCategoryParentIds", zap.Error(err), zap.Int64("id", id))
 		return
 	}
 

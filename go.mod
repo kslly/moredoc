@@ -12,11 +12,13 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/json-iterator/go v1.1.12
 	github.com/kardianos/service v1.2.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mnt-ltd/command v0.0.0-20240428110414-02dd86325b6e
 	github.com/mnt-ltd/daemore v0.0.0-20240227053424-d57afb9f5e67
+	github.com/namsral/flag v1.7.4-pre
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/viper v1.10.1
 	go.uber.org/zap v1.27.0
@@ -35,7 +37,6 @@ require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect

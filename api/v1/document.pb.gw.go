@@ -34,41 +34,6 @@ var _ = utilities.NewDoubleArray
 var _ = descriptor.ForMessage
 var _ = metadata.Join
 
-var (
-	filter_DocumentAPI_ListDocumentForHome_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
-)
-
-func request_DocumentAPI_ListDocumentForHome_0(ctx context.Context, marshaler runtime.Marshaler, client DocumentAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListDocumentForHomeRequest
-	var metadata runtime.ServerMetadata
-
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_DocumentAPI_ListDocumentForHome_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.ListDocumentForHome(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_DocumentAPI_ListDocumentForHome_0(ctx context.Context, marshaler runtime.Marshaler, server DocumentAPIServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListDocumentForHomeRequest
-	var metadata runtime.ServerMetadata
-
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_DocumentAPI_ListDocumentForHome_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := server.ListDocumentForHome(ctx, &protoReq)
-	return msg, metadata, err
-
-}
 
 func request_DocumentAPI_SetDocumentRecommend_0(ctx context.Context, marshaler runtime.Marshaler, client DocumentAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq SetDocumentRecommendRequest
@@ -100,40 +65,6 @@ func local_request_DocumentAPI_SetDocumentRecommend_0(ctx context.Context, marsh
 	}
 
 	msg, err := server.SetDocumentRecommend(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
-func request_DocumentAPI_CreateDocument_0(ctx context.Context, marshaler runtime.Marshaler, client DocumentAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq CreateDocumentRequest
-	var metadata runtime.ServerMetadata
-
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.CreateDocument(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_DocumentAPI_CreateDocument_0(ctx context.Context, marshaler runtime.Marshaler, server DocumentAPIServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq CreateDocumentRequest
-	var metadata runtime.ServerMetadata
-
-	newReader, berr := utilities.IOReaderFactory(req.Body)
-	if berr != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
-	}
-	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := server.CreateDocument(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -380,42 +311,6 @@ func local_request_DocumentAPI_CheckDocument_0(ctx context.Context, marshaler ru
 	}
 
 	msg, err := server.CheckDocument(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
-var (
-	filter_DocumentAPI_ListDocument_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
-)
-
-func request_DocumentAPI_ListDocument_0(ctx context.Context, marshaler runtime.Marshaler, client DocumentAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListDocumentRequest
-	var metadata runtime.ServerMetadata
-
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_DocumentAPI_ListDocument_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := client.ListDocument(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_DocumentAPI_ListDocument_0(ctx context.Context, marshaler runtime.Marshaler, server DocumentAPIServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ListDocumentRequest
-	var metadata runtime.ServerMetadata
-
-	if err := req.ParseForm(); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_DocumentAPI_ListDocument_0); err != nil {
-		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
-	}
-
-	msg, err := server.ListDocument(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -778,29 +673,6 @@ func local_request_RecycleAPI_ClearRecycleDocument_0(ctx context.Context, marsha
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterDocumentAPIHandlerFromEndpoint instead.
 func RegisterDocumentAPIHandlerServer(ctx context.Context, mux *runtime.ServeMux, server DocumentAPIServer) error {
 
-	mux.Handle("GET", pattern_DocumentAPI_ListDocumentForHome_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_DocumentAPI_ListDocumentForHome_0(rctx, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_DocumentAPI_ListDocumentForHome_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("PUT", pattern_DocumentAPI_SetDocumentRecommend_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -821,29 +693,6 @@ func RegisterDocumentAPIHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		}
 
 		forward_DocumentAPI_SetDocumentRecommend_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
-	mux.Handle("POST", pattern_DocumentAPI_CreateDocument_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_DocumentAPI_CreateDocument_0(rctx, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_DocumentAPI_CreateDocument_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1005,29 +854,6 @@ func RegisterDocumentAPIHandlerServer(ctx context.Context, mux *runtime.ServeMux
 		}
 
 		forward_DocumentAPI_CheckDocument_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
-	mux.Handle("GET", pattern_DocumentAPI_ListDocument_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_DocumentAPI_ListDocument_0(rctx, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_DocumentAPI_ListDocument_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1334,26 +1160,6 @@ func RegisterDocumentAPIHandler(ctx context.Context, mux *runtime.ServeMux, conn
 // "DocumentAPIClient" to call the correct interceptors.
 func RegisterDocumentAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux, client DocumentAPIClient) error {
 
-	mux.Handle("GET", pattern_DocumentAPI_ListDocumentForHome_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_DocumentAPI_ListDocumentForHome_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_DocumentAPI_ListDocumentForHome_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("PUT", pattern_DocumentAPI_SetDocumentRecommend_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -1371,26 +1177,6 @@ func RegisterDocumentAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		}
 
 		forward_DocumentAPI_SetDocumentRecommend_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
-	mux.Handle("POST", pattern_DocumentAPI_CreateDocument_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_DocumentAPI_CreateDocument_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_DocumentAPI_CreateDocument_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1531,26 +1317,6 @@ func RegisterDocumentAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux
 		}
 
 		forward_DocumentAPI_CheckDocument_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
-	mux.Handle("GET", pattern_DocumentAPI_ListDocument_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_DocumentAPI_ListDocument_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_DocumentAPI_ListDocument_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -1698,8 +1464,6 @@ func RegisterDocumentAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux
 }
 
 var (
-	pattern_DocumentAPI_ListDocumentForHome_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "document", "home"}, "", runtime.AssumeColonVerbOpt(true)))
-
 	pattern_DocumentAPI_SetDocumentRecommend_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "document", "recommend"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_DocumentAPI_CreateDocument_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "document"}, "", runtime.AssumeColonVerbOpt(true)))
@@ -1718,8 +1482,6 @@ var (
 
 	pattern_DocumentAPI_CheckDocument_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "document", "check"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_DocumentAPI_ListDocument_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "document", "list"}, "", runtime.AssumeColonVerbOpt(true)))
-
 	pattern_DocumentAPI_SearchDocument_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "document", "search"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_DocumentAPI_SetDocumentScore_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "document", "score"}, "", runtime.AssumeColonVerbOpt(true)))
@@ -1736,7 +1498,6 @@ var (
 )
 
 var (
-	forward_DocumentAPI_ListDocumentForHome_0 = runtime.ForwardResponseMessage
 
 	forward_DocumentAPI_SetDocumentRecommend_0 = runtime.ForwardResponseMessage
 
@@ -1755,8 +1516,6 @@ var (
 	forward_DocumentAPI_DownloadDocument_0 = runtime.ForwardResponseMessage
 
 	forward_DocumentAPI_CheckDocument_0 = runtime.ForwardResponseMessage
-
-	forward_DocumentAPI_ListDocument_0 = runtime.ForwardResponseMessage
 
 	forward_DocumentAPI_SearchDocument_0 = runtime.ForwardResponseMessage
 

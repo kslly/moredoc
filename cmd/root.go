@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"moredoc/conf"
 	"moredoc/service"
 	"moredoc/util"
@@ -28,19 +29,18 @@ import (
 
 	"github.com/mnt-ltd/command"
 
+	"moredoc/pkg/logger"
+
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
-	cfgFile   string
-	cfg       = &conf.Config{}
-	logger, _ = zap.NewProduction()
+	cfgFile string
+	cfg     = &conf.Config{}
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -111,11 +111,13 @@ func initConfig() {
 
 	overwriteConfig(cfg)
 
-	initLogger(cfg.Level, cfg.LogEncoding, cfg.Logger)
-
 	cfg.Database.Prefix = "mnt_"
-
-	logger.Info("config", zap.String("Using config file:", viper.ConfigFileUsed()), zap.Any("config", cfg))
+	lg, err := logger.NewLogger()
+	if err != nil {
+		log.Print("instantiation logger error: ", err)
+		return
+	}
+	lg.Infof("config", zap.String("Using config file:", viper.ConfigFileUsed()), zap.Any("config", cfg))
 }
 
 func getEnvDefaultString(key string, df1 string, df2 ...string) string {
@@ -175,68 +177,6 @@ func overwriteConfig(cfg *conf.Config) {
 	cfg.Logger.MaxDays = int(getEnvDefaultInt64("LOGGER_MAX_DAYS", int64(cfg.Logger.MaxDays), 30))
 }
 
-func initLogger(level, LogEncoding string, logCfg ...conf.LoggerConfig) {
-	var err error
-
-	cfg := zap.NewProductionConfig()
-	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
-	lv := zap.InfoLevel
-	switch strings.ToLower(level) {
-	case "debug":
-		lv = zap.DebugLevel
-	case "info":
-		lv = zap.InfoLevel
-	case "warn", "warning":
-		lv = zap.WarnLevel
-	case "error":
-		lv = zap.ErrorLevel
-	default:
-		lv = zap.InfoLevel
-	}
-
-	if len(logCfg) == 0 || logCfg[0].Filename == "" {
-		cfg.Encoding = "console"
-		if LogEncoding != "console" {
-			cfg.Encoding = "json"
-		}
-		cfg.Level.SetLevel(lv)
-
-		paths := []string{"stdout"}
-		cfg.ErrorOutputPaths = paths
-		cfg.OutputPaths = paths
-		logger, err = cfg.Build()
-		if err != nil {
-			logger.Fatal("zap build", zap.Error(err))
-		}
-		return
-	}
-
-	w := zapcore.AddSync(&lumberjack.Logger{
-		Filename:   logCfg[0].Filename,
-		MaxSize:    logCfg[0].MaxSizeMB, // megabytes
-		MaxBackups: logCfg[0].MaxBackups,
-		MaxAge:     logCfg[0].MaxDays, // days
-		Compress:   logCfg[0].Compress,
-	})
-
-	enc := zapcore.NewConsoleEncoder(cfg.EncoderConfig)
-	if LogEncoding != "console" {
-		enc = zapcore.NewJSONEncoder(cfg.EncoderConfig)
-	}
-	core := zapcore.NewCore(
-		enc,
-		w,
-		lv,
-	)
-
-	logger = zap.New(
-		core,
-		zap.AddCaller(),
-		// zap.AddCallerSkip(1),
-	)
-}
-
 func runServer() {
 	util.Version = Version
 	util.Hash = GitHash
@@ -257,8 +197,13 @@ func runServer() {
 		os.Exit(0)
 	}()
 
-	if cfg.JWT.Secret == "" || cfg.JWT.Secret == "moredoc" {
-		logger.Fatal("JWT.Secret", zap.String("安全风险提示", "JWT.Secret不能为空也不能为moredoc，请修改以保证安全性！！！"))
+	lg, err := logger.NewLogger()
+	if err != nil {
+		log.Print("instantiation logger error: ", err)
+		return
 	}
-	service.Run(cfg, logger)
+	if cfg.JWT.Secret == "" || cfg.JWT.Secret == "moredoc" {
+		lg.Fatalf("JWT.Secret", zap.String("安全风险提示", "JWT.Secret不能为空也不能为moredoc，请修改以保证安全性！！！"))
+	}
+	service.Run(cfg, lg)
 }

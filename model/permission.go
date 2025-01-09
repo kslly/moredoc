@@ -35,7 +35,7 @@ func (m *DBModel) GetPermissionByMethodPath(method, path string, createIfNotExis
 
 	err = db.First(&permission).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetPermissionByIdentifier", zap.Error(err))
+		m.logger.Errorf("GetPermissionByIdentifier", zap.Error(err))
 		return
 	}
 
@@ -51,7 +51,7 @@ func (m *DBModel) GetPermissionByMethodPath(method, path string, createIfNotExis
 		permission.Path = path
 		err = m.Create(&permission)
 		if err != nil {
-			m.logger.Error("GetPermissionByIdentifier", zap.Error(err))
+			m.logger.Errorf("GetPermissionByIdentifier", zap.Error(err))
 			return
 		}
 	}
@@ -93,7 +93,7 @@ func (m *DBModel) CheckPermissionByGroupId(groupId []int64, method, path string)
 	fields := []string{"id", "method", "path", "title"}
 	permission, err = m.GetPermissionByMethodPath(method, path, true, fields...)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("CheckPermissionByGroupId", zap.Error(err))
+		m.logger.Errorf("CheckPermissionByGroupId", zap.Error(err))
 	}
 
 	if permission.Id == 0 { // 权限控制表里面不存在的记录，默认允许访问
@@ -105,7 +105,7 @@ func (m *DBModel) CheckPermissionByGroupId(groupId []int64, method, path string)
 	var groupPermission GroupPermission
 	err = m.db.Where("group_id in (?) and permission_id = ?", groupId, permission.Id).First(&groupPermission).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("CheckPermissionByGroupId", zap.Error(err))
+		m.logger.Errorf("CheckPermissionByGroupId", zap.Error(err))
 	}
 
 	// 如果有权限，返回true
@@ -116,7 +116,7 @@ func (m *DBModel) CheckPermissionByGroupId(groupId []int64, method, path string)
 func (m *DBModel) GetPermissionList(opt *OptionGetList) (permissionList []Permission, total int64, err error) {
 	db, total, err := m.queryCond(TablePermission, &Permission{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -124,7 +124,7 @@ func (m *DBModel) GetPermissionList(opt *OptionGetList) (permissionList []Permis
 
 	err = db.Find(&permissionList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetPermissionList", zap.Error(err))
+		m.logger.Errorf("GetPermissionList", zap.Error(err))
 	}
 	return
 }

@@ -5,6 +5,8 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"moredoc/pkg/logger"
 	"moredoc/service"
 	"strings"
 
@@ -53,8 +55,12 @@ var reconvertCmd = &cobra.Command{
 			fmt.Println("\n已取消重转文档。")
 			return
 		}
-
-		service.Reconvert(cfg, logger, ext, documentId)
+		lg, err := logger.NewLogger()
+		if err != nil {
+			log.Print("instantiation logger error: ", err)
+			return
+		}
+		service.Reconvert(cfg, lg, ext, documentId)
 	},
 }
 

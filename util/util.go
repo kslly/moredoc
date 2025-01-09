@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -152,18 +151,6 @@ func LimitRange(number int, min, max int) int {
 	return number
 }
 
-type Any interface {
-	~int | ~int64 | ~int32 | ~bool | ~string | ~float32 | ~float64 | ~uint | ~uint64 | ~uint32
-}
-
-// Slice2Interface 切片转interface切片
-func Slice2Interface[T Any](slice []T) (values []interface{}) {
-	for _, item := range slice {
-		values = append(values, item)
-	}
-	return
-}
-
 // CopyFile 复制文件
 func CopyFile(src, dst string) error {
 	inputFile, err := os.Open(src)
@@ -238,43 +225,6 @@ func GetCommandVersion(command string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
-}
-
-// 获取系统发行版本信息
-func GetOSRelease() string {
-	var (
-		name    string
-		version string
-	)
-	switch runtime.GOOS {
-	case "linux":
-		content, err := os.ReadFile("/etc/os-release")
-		if err != nil {
-			return runtime.GOOS
-		}
-		lines := strings.Split(string(content), "\n")
-		for _, line := range lines {
-			if strings.HasPrefix(line, "NAME=") {
-				name = strings.Trim(strings.TrimPrefix(line, "NAME="), "\"")
-			}
-			if strings.HasPrefix(line, "VERSION_ID=") {
-				version = strings.Trim(strings.TrimPrefix(line, "VERSION_ID="), "\"")
-			}
-		}
-		if name != "" {
-			return name + " " + version
-		}
-	}
-	return runtime.GOOS
-}
-
-func InSlice[T Any](slice []T, value T) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
 }
 
 func GenDocumentMD5UUID() string {

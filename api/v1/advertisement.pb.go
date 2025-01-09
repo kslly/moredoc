@@ -508,7 +508,6 @@ type AdvertisementAPIClient interface {
 	UpdateAdvertisement(ctx context.Context, in *Advertisement, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeleteAdvertisement(ctx context.Context, in *DeleteAdvertisementRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetAdvertisement(ctx context.Context, in *GetAdvertisementRequest, opts ...grpc.CallOption) (*Advertisement, error)
-	GetAdvertisementByPosition(ctx context.Context, in *GetAdvertisementByPositionRequest, opts ...grpc.CallOption) (*ListAdvertisementReply, error)
 	ListAdvertisement(ctx context.Context, in *ListAdvertisementRequest, opts ...grpc.CallOption) (*ListAdvertisementReply, error)
 }
 
@@ -556,15 +555,6 @@ func (c *advertisementAPIClient) GetAdvertisement(ctx context.Context, in *GetAd
 	return out, nil
 }
 
-func (c *advertisementAPIClient) GetAdvertisementByPosition(ctx context.Context, in *GetAdvertisementByPositionRequest, opts ...grpc.CallOption) (*ListAdvertisementReply, error) {
-	out := new(ListAdvertisementReply)
-	err := c.cc.Invoke(ctx, "/api.v1.AdvertisementAPI/GetAdvertisementByPosition", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *advertisementAPIClient) ListAdvertisement(ctx context.Context, in *ListAdvertisementRequest, opts ...grpc.CallOption) (*ListAdvertisementReply, error) {
 	out := new(ListAdvertisementReply)
 	err := c.cc.Invoke(ctx, "/api.v1.AdvertisementAPI/ListAdvertisement", in, out, opts...)
@@ -580,7 +570,6 @@ type AdvertisementAPIServer interface {
 	UpdateAdvertisement(context.Context, *Advertisement) (*emptypb.Empty, error)
 	DeleteAdvertisement(context.Context, *DeleteAdvertisementRequest) (*emptypb.Empty, error)
 	GetAdvertisement(context.Context, *GetAdvertisementRequest) (*Advertisement, error)
-	GetAdvertisementByPosition(context.Context, *GetAdvertisementByPositionRequest) (*ListAdvertisementReply, error)
 	ListAdvertisement(context.Context, *ListAdvertisementRequest) (*ListAdvertisementReply, error)
 }
 
@@ -600,9 +589,7 @@ func (*UnimplementedAdvertisementAPIServer) DeleteAdvertisement(ctx context.Cont
 func (*UnimplementedAdvertisementAPIServer) GetAdvertisement(ctx context.Context, req *GetAdvertisementRequest) (*Advertisement, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAdvertisement not implemented")
 }
-func (*UnimplementedAdvertisementAPIServer) GetAdvertisementByPosition(ctx context.Context, req *GetAdvertisementByPositionRequest) (*ListAdvertisementReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAdvertisementByPosition not implemented")
-}
+
 func (*UnimplementedAdvertisementAPIServer) ListAdvertisement(ctx context.Context, req *ListAdvertisementRequest) (*ListAdvertisementReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListAdvertisement not implemented")
 }
@@ -683,24 +670,6 @@ func _AdvertisementAPI_GetAdvertisement_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AdvertisementAPI_GetAdvertisementByPosition_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAdvertisementByPositionRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AdvertisementAPIServer).GetAdvertisementByPosition(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.AdvertisementAPI/GetAdvertisementByPosition",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AdvertisementAPIServer).GetAdvertisementByPosition(ctx, req.(*GetAdvertisementByPositionRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _AdvertisementAPI_ListAdvertisement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListAdvertisementRequest)
 	if err := dec(in); err != nil {
@@ -738,10 +707,6 @@ var _AdvertisementAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetAdvertisement",
 			Handler:    _AdvertisementAPI_GetAdvertisement_Handler,
-		},
-		{
-			MethodName: "GetAdvertisementByPosition",
-			Handler:    _AdvertisementAPI_GetAdvertisementByPosition_Handler,
 		},
 		{
 			MethodName: "ListAdvertisement",

@@ -42,7 +42,7 @@ func (m *DBModel) MakePunishmentOperators(userId int64, punishmentType int32, op
 	if len(operaterStr) > 0 && operaterStr[0] != "" {
 		err := jsoniter.Unmarshal([]byte(operaterStr[0]), &operators)
 		if err != nil {
-			m.logger.Error("FormatPunishmentOperators", zap.Error(err))
+			m.logger.Errorf("FormatPunishmentOperators", zap.Error(err))
 			return operaterStr[0]
 		}
 	}
@@ -55,7 +55,7 @@ func (m *DBModel) MakePunishmentOperators(userId int64, punishmentType int32, op
 
 	operatersByte, err := jsoniter.Marshal(operators)
 	if err != nil {
-		m.logger.Error("FormatPunishmentOperators", zap.Error(err))
+		m.logger.Errorf("FormatPunishmentOperators", zap.Error(err))
 		if len(operaterStr) > 0 {
 			return operaterStr[0]
 		}
@@ -92,7 +92,7 @@ func (m *DBModel) isInPunishing(userId int64, types []int) (yes bool, err error)
 		if err == gorm.ErrRecordNotFound {
 			return false, nil
 		}
-		m.logger.Error("isInPunishing", zap.Error(err))
+		m.logger.Errorf("isInPunishing", zap.Error(err))
 		return
 	}
 	return punishment.Id > 0, nil

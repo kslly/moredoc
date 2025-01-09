@@ -2,13 +2,14 @@ package model
 
 import (
 	"bytes"
+	"log"
 	"moredoc/conf"
+	"moredoc/pkg/logger"
 	"os"
 	"strings"
 	"testing"
 	"text/template"
 
-	"go.uber.org/zap"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -97,12 +98,16 @@ func TestGenData(t *testing.T) {
 
 func TestConvertDocument(t *testing.T) {
 	dsn := "root:root@tcp(127.0.0.1)/moredoc?charset=utf8mb4&parseTime=True&loc=Local"
-	logger, _ := zap.NewDevelopment()
+	lg, err := logger.NewLogger()
+	if err != nil {
+		log.Print("instantiation logger error: ", err)
+		return
+	}
 	dbModel, err := NewDBModel(&conf.Database{
 		DSN:     dsn,
 		Prefix:  "mnt_",
 		ShowSQL: true,
-	}, logger)
+	}, lg)
 	if err != nil {
 		t.Fatal(err.Error())
 	}

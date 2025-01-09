@@ -49,21 +49,21 @@ func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 
 	err = tx.Create(comment).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
 	// 文档评论数+1
 	err = tx.Model(&Document{}).Where("id = ?", comment.DocumentId).Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
 	// 用户评论数+1
 	err = tx.Model(&User{}).Where("id = ?", comment.UserId).Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
@@ -75,7 +75,7 @@ func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 	if comment.ParentId > 0 {
 		err = tx.Model(&Comment{}).Where("id = ?", comment.ParentId).Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("CreateComment", zap.Error(err))
+			m.logger.Errorf("CreateComment", zap.Error(err))
 			return
 		}
 		dynamic.Content = fmt.Sprintf(`在文档《<a href="/document/%s">%s</a>》中回复了评论`, doc.UUID, html.EscapeString(doc.Title))
@@ -86,7 +86,7 @@ func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 	// 增加评论动态
 	err = tx.Create(dynamic).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
@@ -98,7 +98,7 @@ func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 		var count int64
 		errCount := tx.Model(&Comment{}).Where("document_id = ? and created_at > ?", comment.DocumentId, time.Now().Format("2006-01-02")).Count(&count).Error
 		if errCount != nil && errCount != gorm.ErrRecordNotFound {
-			m.logger.Error("CreateComment", zap.Error(errCount))
+			m.logger.Errorf("CreateComment", zap.Error(errCount))
 			return
 		}
 
@@ -106,7 +106,7 @@ func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 		if int32(count) < cfgScore.DocumentCommentedLimit {
 			err = tx.Model(&User{}).Where("id = ?", doc.UserId).Update("credit_count", gorm.Expr("credit_count + ?", cfgScore.DocumentCommented)).Error
 			if err != nil {
-				m.logger.Error("CreateComment", zap.Error(err))
+				m.logger.Errorf("CreateComment", zap.Error(err))
 				return
 			}
 			canRewarded = true
@@ -125,7 +125,7 @@ func (m *DBModel) CreateDocumentComment(comment *Comment) (err error) {
 
 	err = tx.Create(newDynamic).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 	return
@@ -150,21 +150,21 @@ func (m *DBModel) CreateArticleComment(comment *Comment) (err error) {
 
 	err = tx.Create(comment).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
 	// 文档评论数+1
 	err = tx.Model(article).Where("id = ?", comment.DocumentId).Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
 	// 用户评论数+1
 	err = tx.Model(&User{}).Where("id = ?", comment.UserId).Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 
@@ -176,7 +176,7 @@ func (m *DBModel) CreateArticleComment(comment *Comment) (err error) {
 	if comment.ParentId > 0 {
 		err = tx.Model(&Comment{}).Where("id = ?", comment.ParentId).Update("comment_count", gorm.Expr("comment_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("CreateComment", zap.Error(err))
+			m.logger.Errorf("CreateComment", zap.Error(err))
 			return
 		}
 		dynamic.Content = fmt.Sprintf(`在文章《<a href="/article/%s">%s</a>》中回复了评论`, article.Identifier, html.EscapeString(article.Title))
@@ -187,7 +187,7 @@ func (m *DBModel) CreateArticleComment(comment *Comment) (err error) {
 	// 增加评论动态
 	err = tx.Create(dynamic).Error
 	if err != nil {
-		m.logger.Error("CreateComment", zap.Error(err))
+		m.logger.Errorf("CreateComment", zap.Error(err))
 		return
 	}
 	return
@@ -225,7 +225,7 @@ func (m *DBModel) DeleteComment(ids []int64, limitUserId ...int64) (err error) {
 
 	err = tx.Where(condStr, args...).Delete(&Comment{}).Error
 	if err != nil {
-		m.logger.Error("DeleteComment", zap.Error(err))
+		m.logger.Errorf("DeleteComment", zap.Error(err))
 		return
 	}
 
@@ -233,7 +233,7 @@ func (m *DBModel) DeleteComment(ids []int64, limitUserId ...int64) (err error) {
 		// 更新文档评论数
 		err = tx.Model(document).Where("id = ?", comment.DocumentId).UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error
 		if err != nil {
-			m.logger.Error("DeleteComment", zap.Error(err))
+			m.logger.Errorf("DeleteComment", zap.Error(err))
 			return
 		}
 
@@ -241,7 +241,7 @@ func (m *DBModel) DeleteComment(ids []int64, limitUserId ...int64) (err error) {
 		if comment.ParentId > 0 {
 			err = tx.Model(&comment).Where("id = ?", comment.ParentId).UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error
 			if err != nil {
-				m.logger.Error("DeleteComment", zap.Error(err))
+				m.logger.Errorf("DeleteComment", zap.Error(err))
 				return
 			}
 		}
@@ -249,7 +249,7 @@ func (m *DBModel) DeleteComment(ids []int64, limitUserId ...int64) (err error) {
 		// 更新用户评论数
 		err = tx.Model(user).Where("id = ?", comment.UserId).UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error
 		if err != nil {
-			m.logger.Error("DeleteComment", zap.Error(err))
+			m.logger.Errorf("DeleteComment", zap.Error(err))
 			return
 		}
 	}
@@ -271,11 +271,11 @@ func (m *DBModel) GetDefaultCommentStatus(userId int64) int {
 		"left join " + TableUserGroup + " ug on g.id=ug.group_id",
 	).Find(&group).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDefaultCommentStatus", zap.Error(err))
+		m.logger.Errorf("GetDefaultCommentStatus", zap.Error(err))
 		return status
 	}
 
-	m.logger.Debug("GetDefaultCommentStatus", zap.Any("group", group))
+	m.logger.Debugf("GetDefaultCommentStatus", zap.Any("group", group))
 
 	if group.Id > 0 {
 		status = CommentStatusApproved

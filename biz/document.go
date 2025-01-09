@@ -12,9 +12,10 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"moredoc/util/filetil"
-	"moredoc/util/segword/jieba"
 
 	"github.com/araddon/dateparse"
 	"github.com/golang-jwt/jwt"
@@ -27,11 +28,11 @@ import (
 type DocumentAPIService struct {
 	pb.UnimplementedDocumentAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewDocumentAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *DocumentAPIService) {
-	return &DocumentAPIService{dbModel: dbModel, logger: logger.Named("DocumentAPIService")}
+func NewDocumentAPIService(dbModel *model.DBModel, logger logger.Logger) (service *DocumentAPIService) {
+	return &DocumentAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *DocumentAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -42,92 +43,11 @@ func (s *DocumentAPIService) checkLogin(ctx context.Context) (userClaims *auth.U
 	return checkGRPCLogin(s.dbModel, ctx)
 }
 
-// CreateDocument 创建文档
-// 0. 判断是否有权限
-// 1. 同名覆盖：找到该作者上传的相同title和ext的文档，然后用新文件覆盖，同时文档状态改为待转换
-// 2. 相同hash的文档如果已经被转换了，则该文档的状态直接改为已转换
-// 3. 判断附件ID是否与用户ID匹配，不匹配则跳过该文档
-func (s *DocumentAPIService) CreateDocument(ctx context.Context, req *pb.CreateDocumentRequest) (*emptypb.Empty, error) {
-	userClaims, err := s.checkLogin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if !s.dbModel.CanIAccessUploadDocument(userClaims.UserId) {
-		return nil, status.Error(codes.PermissionDenied, "没有权限上传文档")
-	}
-
-	var (
-		attachmentIds []int64
-		attachmentMap = make(map[int64]model.Attachment)
-	)
-
-	for _, item := range req.Document {
-		attachmentIds = append(attachmentIds, item.AttachmentId)
-	}
-
-	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetList{
-		Ids:     attachmentIds,
-		QueryIn: map[string][]interface{}{"user_id": {userClaims.UserId}},
-	})
-	if len(attachments) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "文档文件参数attachment_id不正确")
-	}
-
-	for _, attachment := range attachments {
-		attachmentMap[attachment.Id] = attachment
-	}
-
-	var (
-		documents        []model.Document
-		docMapAttachment = make(map[int]int64)
-	)
-
-	documentStatus := s.dbModel.GetDefaultDocumentStatus(userClaims.UserId)
-	for idx, doc := range req.Document {
-		attachment, ok := attachmentMap[doc.AttachmentId]
-		if !ok {
-			continue
-		}
-
-		doc := model.Document{
-			Title:    doc.Title,
-			Keywords: strings.Join(jieba.SegWords(doc.Title), ","),
-			UserId:   userClaims.UserId,
-			UUID:     util.GenDocumentMD5UUID(),
-			Score:    300,
-			Price:    int(doc.Price),
-			Size:     attachment.Size,
-			Ext:      attachment.Ext,
-			Status:   documentStatus,
-			Language: doc.Language,
-		}
-		docMapAttachment[idx] = attachment.Id
-		documents = append(documents, doc)
-	}
-
-	docs, err := s.dbModel.CreateDocuments(documents, req.CategoryId)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	attachIdTypeIdMap := make(map[int64]int64)
-	for idx, doc := range docs {
-		if attachmentId, ok := docMapAttachment[idx]; ok {
-			attachIdTypeIdMap[attachmentId] = doc.Id
-		}
-	}
-
-	s.dbModel.SetAttachmentTypeId(attachIdTypeIdMap)
-
-	return &emptypb.Empty{}, nil
-}
-
 // UpdateDocument 更新文档
 // 1. 对于普通用户，可以更新自己创建的文档
 // 2. 对于管理员，可以更新所有文档
 func (s *DocumentAPIService) UpdateDocument(ctx context.Context, req *pb.Document) (*emptypb.Empty, error) {
-	s.logger.Debug("UpdateDocument", zap.Any("req", req))
+	s.logger.Debugf("UpdateDocument", zap.Any("req", req))
 	userClaims, err := s.checkPermission(ctx)
 	if userClaims == nil { // 未登录
 		return nil, err
@@ -149,14 +69,14 @@ func (s *DocumentAPIService) UpdateDocument(ctx context.Context, req *pb.Documen
 
 	err = s.dbModel.UpdateDocument(doc, req.CategoryId, fields...)
 	if err != nil {
-		s.logger.Error("UpdateDocument", zap.Error(err))
+		s.logger.Errorf("UpdateDocument", zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	if req.Content != "" {
 		err = s.dbModel.SetAttachmentContentByType(model.AttachmentTypeDocument, req.Id, []byte(req.Content))
 		if err != nil {
-			s.logger.Error("SetAttachmentContent", zap.Error(err))
+			s.logger.Errorf("SetAttachmentContent", zap.Error(err))
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
@@ -169,7 +89,7 @@ func (s *DocumentAPIService) UpdateDocument(ctx context.Context, req *pb.Documen
 // 2. 对于管理员，可以删除所有文档
 func (s *DocumentAPIService) DeleteDocument(ctx context.Context, req *pb.DeleteDocumentRequest) (*emptypb.Empty, error) {
 	userClaims, err := s.checkPermission(ctx)
-	s.logger.Info("DeleteDocument", zap.Any("userClaims", userClaims), zap.Error(err))
+	s.logger.Infof("DeleteDocument", zap.Any("userClaims", userClaims), zap.Error(err))
 	if err != nil && userClaims == nil { // 未登录
 		return nil, err
 	}
@@ -316,95 +236,6 @@ func (s *DocumentAPIService) GetDocument(ctx context.Context, req *pb.GetDocumen
 	return pbDoc, nil
 }
 
-// ListDocument 查询文档列表
-// 1. 对于普通用户，只能查询未禁用的文档，且最多只能查询100页
-// 2. 对于管理员，可以查询所有文档，可以根据关键字进行查询
-func (s *DocumentAPIService) ListDocument(ctx context.Context, req *pb.ListDocumentRequest) (*pb.ListDocumentReply, error) {
-	opt := &model.OptionGetList{
-		WithCount:    req.Limit <= 0,
-		Page:         int(req.Page),
-		Size:         int(req.Size_),
-		SelectFields: req.Field,
-		QueryIn:      make(map[string][]interface{}),
-		QueryLike:    make(map[string][]interface{}),
-		QueryRange:   make(map[string][2]interface{}),
-		IsRecommend:  req.IsRecommend,
-		FeeType:      req.FeeType,
-	}
-
-	if len(req.Order) > 0 {
-		opt.Sort = []string{req.Order}
-	}
-
-	if len(req.CategoryId) > 0 {
-		opt.QueryIn["category_id"] = util.Slice2Interface(req.CategoryId)
-	}
-
-	if len(req.UserId) > 0 {
-		opt.QueryIn["user_id"] = []interface{}{req.UserId[0]}
-	}
-
-	if len(req.Language) > 0 {
-		var languages []interface{}
-		for _, lang := range req.Language {
-			if lang == "" {
-				continue
-			}
-			languages = append(languages, lang)
-		}
-		if len(languages) > 0 {
-			opt.QueryIn["language"] = languages
-		}
-	}
-
-	if exts := filetil.GetExts(req.Ext); len(exts) > 0 {
-		opt.QueryIn["ext"] = util.Slice2Interface(exts)
-	}
-
-	if l := len(req.CreatedAt); l > 0 {
-		end := time.Now()
-		start, _ := dateparse.ParseLocal(req.CreatedAt[0])
-		if l > 1 {
-			end, _ = dateparse.ParseLocal(req.CreatedAt[1])
-		}
-		opt.QueryRange["created_at"] = [2]interface{}{start, end}
-	}
-
-	_, err := s.checkPermission(ctx)
-	if err == nil { // 有权限，则不限页数
-		if req.Wd != "" {
-			opt.QueryLike["title"] = []interface{}{req.Wd}
-			opt.QueryLike["keywords"] = []interface{}{req.Wd}
-			opt.QueryLike["description"] = []interface{}{req.Wd}
-		}
-
-		if len(req.Status) > 0 {
-			opt.QueryIn["status"] = util.Slice2Interface(req.Status)
-		}
-	} else {
-		opt.Size = util.LimitRange(opt.Size, 1, 24)
-		opt.Page = util.LimitRange(opt.Page, 1, 100)
-		if len(req.Status) == 1 && req.Status[0] == model.DocumentStatusConverted {
-			opt.QueryIn["status"] = []interface{}{
-				model.DocumentStatusConverted,
-			}
-		} else {
-			opt.QueryIn["status"] = []interface{}{
-				model.DocumentStatusPending, model.DocumentStatusConverting,
-				model.DocumentStatusConverted, model.DocumentStatusFailed,
-			}
-		}
-	}
-
-	if req.Limit > 0 {
-		opt.Size = int(req.Limit)
-		opt.Page = 1
-	}
-
-	s.logger.Debug("ListDocument", zap.Any("opt", opt))
-	return s.listDocument(opt, ctx)
-}
-
 // ListRecycleDocument 回收站文档
 func (s *DocumentAPIService) ListRecycleDocument(ctx context.Context, req *pb.ListDocumentRequest) (*pb.ListDocumentReply, error) {
 	_, err := s.checkPermission(ctx)
@@ -423,7 +254,7 @@ func (s *DocumentAPIService) ListRecycleDocument(ctx context.Context, req *pb.Li
 	}
 
 	if len(req.CategoryId) > 0 {
-		opt.QueryIn["category_id"] = util.Slice2Interface(req.CategoryId)
+		opt.QueryIn["category_id"] = cvt.ToArray(req.CategoryId)
 	}
 
 	if len(req.UserId) > 0 {
@@ -437,7 +268,7 @@ func (s *DocumentAPIService) ListRecycleDocument(ctx context.Context, req *pb.Li
 	}
 
 	if len(req.Status) > 0 {
-		opt.QueryIn["status"] = util.Slice2Interface(req.Status)
+		opt.QueryIn["status"] = cvt.ToArray(req.Status)
 	}
 
 	return s.listDocument(opt, ctx)
@@ -450,7 +281,7 @@ func (s *DocumentAPIService) RecoverRecycleDocument(ctx context.Context, req *pb
 		return nil, status.Error(codes.PermissionDenied, err.Error())
 	}
 
-	s.logger.Debug("RecoverRecycleDocument", zap.Any("req", req))
+	s.logger.Debugf("RecoverRecycleDocument", zap.Any("req", req))
 
 	if len(req.Id) == 0 {
 		return &emptypb.Empty{}, nil
@@ -488,7 +319,7 @@ func (s *DocumentAPIService) ClearRecycleDocument(ctx context.Context, req *empt
 
 	err = s.dbModel.ClearRecycleDocument()
 	if err != nil {
-		s.logger.Error("ClearRecycleDocument", zap.Error(err))
+		s.logger.Errorf("ClearRecycleDocument", zap.Error(err))
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
@@ -504,7 +335,7 @@ func (s *DocumentAPIService) listDocument(opt *model.OptionGetList, ctx context.
 	var pbDocs []*pb.Document
 	err = util.CopyStruct(&docs, &pbDocs)
 	if err != nil {
-		s.logger.Error("CopyStruct failed", zap.Error(err))
+		s.logger.Errorf("CopyStruct failed", zap.Error(err))
 	}
 
 	var (
@@ -557,7 +388,7 @@ func (s *DocumentAPIService) listDocument(opt *model.OptionGetList, ctx context.
 		docCates, _, _ = s.dbModel.GetDocumentCategoryList(&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"document_id", "category_id"},
-			QueryIn:      map[string][]interface{}{"document_id": util.Slice2Interface(docIds)},
+			QueryIn:      map[string][]interface{}{"document_id": cvt.ToArray(docIds)},
 		})
 		for _, docCate := range docCates {
 			pbDocs[docIndexMap[docCate.DocumentId]].CategoryId = append(pbDocs[docIndexMap[docCate.DocumentId]].CategoryId, docCate.CategoryId)
@@ -566,7 +397,7 @@ func (s *DocumentAPIService) listDocument(opt *model.OptionGetList, ctx context.
 		docUsers, _, _ = s.dbModel.GetUserList(&model.OptionGetList{
 			WithCount:    false,
 			SelectFields: []string{"id", "username"},
-			QueryIn:      map[string][]interface{}{"id": util.Slice2Interface(userIds)},
+			QueryIn:      map[string][]interface{}{"id": cvt.ToArray(userIds)},
 		})
 
 		// 查找文档相关联的附件。对于列表，只返回hash和id，不返回其他字段
@@ -574,7 +405,7 @@ func (s *DocumentAPIService) listDocument(opt *model.OptionGetList, ctx context.
 			WithCount:    false,
 			SelectFields: []string{"hash", "id", "type_id"},
 			QueryIn: map[string][]interface{}{
-				"type_id": util.Slice2Interface(docIds),
+				"type_id": cvt.ToArray(docIds),
 				"type":    {model.AttachmentTypeDocument},
 			},
 		})
@@ -625,86 +456,6 @@ func (s *DocumentAPIService) SetDocumentRecommend(ctx context.Context, req *pb.S
 	return &emptypb.Empty{}, nil
 }
 
-func (s *DocumentAPIService) ListDocumentForHome(ctx context.Context, req *pb.ListDocumentForHomeRequest) (*pb.ListDocumentForHomeResponse, error) {
-	// 1. 查询启用了的分类
-	categories, _, _ := s.dbModel.GetCategoryList(&model.OptionGetList{
-		WithCount: false,
-		QueryIn: map[string][]interface{}{
-			"enable":    {true},
-			"parent_id": {0},
-			"type":      {model.CategoryTypeDocument}, // 仅限文档分类
-		},
-	})
-
-	if len(categories) == 0 {
-		return &pb.ListDocumentForHomeResponse{}, nil
-	}
-
-	limit := 5
-	if req.Limit > 0 && req.Limit <= 100 {
-		limit = int(req.Limit)
-	}
-
-	defaultFields := []string{"id", "title", "ext", "uuid", "pages"}
-	if len(req.Field) > 0 {
-		defaultFields = append(defaultFields, req.Field...)
-	}
-
-	var docIds []int64
-	resp := &pb.ListDocumentForHomeResponse{}
-	for _, category := range categories {
-		docs, _, _ := s.dbModel.GetDocumentList(&model.OptionGetList{
-			WithCount: false,
-			QueryIn: map[string][]interface{}{
-				"category_id": {category.Id},
-				"status":      {model.DocumentStatusConverted},
-			},
-			Page:         1,
-			Size:         limit,
-			Sort:         []string{"id desc"},
-			SelectFields: defaultFields,
-		})
-
-		var pbDocs []*pb.Document
-		util.CopyStruct(&docs, &pbDocs)
-		resp.Document = append(resp.Document, &pb.ListDocumentForHomeItem{
-			CategoryId:    category.Id,
-			CategoryName:  category.Title,
-			CategoryCover: category.Cover,
-			Document:      pbDocs,
-		})
-
-		for _, doc := range docs {
-			docIds = append(docIds, doc.Id)
-		}
-	}
-
-	// 查找文档相关联的附件。对于列表，只返回hash和id，不返回其他字段
-	attachments, _, _ := s.dbModel.GetAttachmentList(&model.OptionGetList{
-		WithCount:    false,
-		SelectFields: []string{"hash", "id", "type_id"},
-		QueryIn: map[string][]interface{}{
-			"type_id": util.Slice2Interface(docIds),
-			"type":    {model.AttachmentTypeDocument},
-		},
-	})
-
-	docIdMapAttachmentHash := make(map[int64]string)
-	for _, attachment := range attachments {
-		docIdMapAttachmentHash[attachment.TypeId] = attachment.Hash
-	}
-
-	for _, item := range resp.Document {
-		for _, doc := range item.Document {
-			if hash, ok := docIdMapAttachmentHash[doc.Id]; ok {
-				doc.Cover = fmt.Sprintf("/view/cover/%s", hash)
-			}
-		}
-	}
-
-	return resp, nil
-}
-
 // 搜索文档
 func (s *DocumentAPIService) SearchDocument(ctx context.Context, req *pb.SearchDocumentRequest) (res *pb.SearchDocumentReply, err error) {
 	res = &pb.SearchDocumentReply{}
@@ -727,14 +478,14 @@ func (s *DocumentAPIService) SearchDocument(ctx context.Context, req *pb.SearchD
 		return res, nil
 	}
 	opt.QueryLike = map[string][]interface{}{
-		"title":       util.Slice2Interface(strings.Split(req.Wd, " ")),
-		"keywords":    util.Slice2Interface(strings.Split(req.Wd, " ")),
-		"description": util.Slice2Interface(strings.Split(req.Wd, " ")),
+		"title":       cvt.ToArray(strings.Split(req.Wd, " ")),
+		"keywords":    cvt.ToArray(strings.Split(req.Wd, " ")),
+		"description": cvt.ToArray(strings.Split(req.Wd, " ")),
 	}
 
 	if len(req.CategoryId) > 0 {
 		opt.QueryIn = map[string][]interface{}{
-			"category_id": util.Slice2Interface(req.CategoryId),
+			"category_id": cvt.ToArray(req.CategoryId),
 		}
 	}
 
@@ -754,7 +505,7 @@ func (s *DocumentAPIService) SearchDocument(ctx context.Context, req *pb.SearchD
 	if req.Ext != "" {
 		exts := filetil.GetExts(req.Ext)
 		if len(exts) > 0 {
-			opt.QueryIn["ext"] = util.Slice2Interface(exts)
+			opt.QueryIn["ext"] = cvt.ToArray(exts)
 		}
 	}
 
@@ -767,7 +518,7 @@ func (s *DocumentAPIService) SearchDocument(ctx context.Context, req *pb.SearchD
 			languages = append(languages, lang)
 		}
 		if len(languages) > 0 {
-			opt.QueryIn["language"] = util.Slice2Interface(req.Language)
+			opt.QueryIn["language"] = cvt.ToArray(req.Language)
 		}
 	}
 
@@ -885,7 +636,7 @@ func (s *DocumentAPIService) DownloadDocument(ctx context.Context, req *pb.Docum
 		IsPay:      !free,
 	}
 
-	s.logger.Debug("下载文档", zap.Any("down", down), zap.Bool("canFreeDownload", free))
+	s.logger.Debugf("下载文档", zap.Any("down", down), zap.Bool("canFreeDownload", free))
 
 	// 直接返回下载地址
 	err = s.dbModel.CreateDownload(down)

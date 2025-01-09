@@ -34,24 +34,6 @@ var _ = utilities.NewDoubleArray
 var _ = descriptor.ForMessage
 var _ = metadata.Join
 
-func request_ConfigAPI_GetSettings_0(ctx context.Context, marshaler runtime.Marshaler, client ConfigAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq emptypb.Empty
-	var metadata runtime.ServerMetadata
-
-	msg, err := client.GetSettings(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_ConfigAPI_GetSettings_0(ctx context.Context, marshaler runtime.Marshaler, server ConfigAPIServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq emptypb.Empty
-	var metadata runtime.ServerMetadata
-
-	msg, err := server.GetSettings(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
 func request_ConfigAPI_UpdateConfig_0(ctx context.Context, marshaler runtime.Marshaler, client ConfigAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq Configs
 	var metadata runtime.ServerMetadata
@@ -118,24 +100,6 @@ func local_request_ConfigAPI_ListConfig_0(ctx context.Context, marshaler runtime
 	}
 
 	msg, err := server.ListConfig(ctx, &protoReq)
-	return msg, metadata, err
-
-}
-
-func request_ConfigAPI_GetStats_0(ctx context.Context, marshaler runtime.Marshaler, client ConfigAPIClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq emptypb.Empty
-	var metadata runtime.ServerMetadata
-
-	msg, err := client.GetStats(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return msg, metadata, err
-
-}
-
-func local_request_ConfigAPI_GetStats_0(ctx context.Context, marshaler runtime.Marshaler, server ConfigAPIServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq emptypb.Empty
-	var metadata runtime.ServerMetadata
-
-	msg, err := server.GetStats(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -322,29 +286,6 @@ func local_request_ConfigAPI_SetReleaseSource_0(ctx context.Context, marshaler r
 // Note that using this registration option will cause many gRPC library features to stop working. Consider using RegisterConfigAPIHandlerFromEndpoint instead.
 func RegisterConfigAPIHandlerServer(ctx context.Context, mux *runtime.ServeMux, server ConfigAPIServer) error {
 
-	mux.Handle("GET", pattern_ConfigAPI_GetSettings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_ConfigAPI_GetSettings_0(rctx, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_ConfigAPI_GetSettings_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("PUT", pattern_ConfigAPI_UpdateConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -388,29 +329,6 @@ func RegisterConfigAPIHandlerServer(ctx context.Context, mux *runtime.ServeMux, 
 		}
 
 		forward_ConfigAPI_ListConfig_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
-	mux.Handle("GET", pattern_ConfigAPI_GetStats_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		var stream runtime.ServerTransportStream
-		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := local_request_ConfigAPI_GetStats_0(rctx, inboundMarshaler, server, req, pathParams)
-		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_ConfigAPI_GetStats_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -639,26 +557,6 @@ func RegisterConfigAPIHandler(ctx context.Context, mux *runtime.ServeMux, conn *
 // "ConfigAPIClient" to call the correct interceptors.
 func RegisterConfigAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux, client ConfigAPIClient) error {
 
-	mux.Handle("GET", pattern_ConfigAPI_GetSettings_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_ConfigAPI_GetSettings_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_ConfigAPI_GetSettings_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
-
 	mux.Handle("PUT", pattern_ConfigAPI_UpdateConfig_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -699,25 +597,6 @@ func RegisterConfigAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux, 
 
 	})
 
-	mux.Handle("GET", pattern_ConfigAPI_GetStats_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
-		ctx, cancel := context.WithCancel(req.Context())
-		defer cancel()
-		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-		resp, md, err := request_ConfigAPI_GetStats_0(rctx, inboundMarshaler, client, req, pathParams)
-		ctx = runtime.NewServerMetadataContext(ctx, md)
-		if err != nil {
-			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
-			return
-		}
-
-		forward_ConfigAPI_GetStats_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
-
-	})
 
 	mux.Handle("GET", pattern_ConfigAPI_GetEnvs_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
@@ -883,13 +762,10 @@ func RegisterConfigAPIHandlerClient(ctx context.Context, mux *runtime.ServeMux, 
 }
 
 var (
-	pattern_ConfigAPI_GetSettings_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "settings"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_ConfigAPI_UpdateConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "config"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_ConfigAPI_ListConfig_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3}, []string{"api", "v1", "config", "list"}, "", runtime.AssumeColonVerbOpt(true)))
-
-	pattern_ConfigAPI_GetStats_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "stats"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_ConfigAPI_GetEnvs_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"api", "v1", "envs"}, "", runtime.AssumeColonVerbOpt(true)))
 
@@ -909,13 +785,10 @@ var (
 )
 
 var (
-	forward_ConfigAPI_GetSettings_0 = runtime.ForwardResponseMessage
 
 	forward_ConfigAPI_UpdateConfig_0 = runtime.ForwardResponseMessage
 
 	forward_ConfigAPI_ListConfig_0 = runtime.ForwardResponseMessage
-
-	forward_ConfigAPI_GetStats_0 = runtime.ForwardResponseMessage
 
 	forward_ConfigAPI_GetEnvs_0 = runtime.ForwardResponseMessage
 

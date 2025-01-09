@@ -2,11 +2,12 @@ package biz
 
 import (
 	"context"
-	"time"
 
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
 	"go.uber.org/zap"
@@ -19,11 +20,11 @@ import (
 type AdvertisementAPIService struct {
 	pb.UnimplementedAdvertisementAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewAdvertisementAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *AdvertisementAPIService) {
-	return &AdvertisementAPIService{dbModel: dbModel, logger: logger.Named("AdvertisementAPIService")}
+func NewAdvertisementAPIService(dbModel *model.DBModel, logger logger.Logger) (service *AdvertisementAPIService) {
+	return &AdvertisementAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *AdvertisementAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -38,7 +39,7 @@ func (s *AdvertisementAPIService) CreateAdvertisement(ctx context.Context, req *
 
 	adv := &model.Advertisement{}
 	if err = util.CopyStruct(req, adv); err != nil {
-		s.logger.Error("CreateAdvertisement", zap.Error(err))
+		s.logger.Errorf("CreateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "创建广告失败:"+err.Error())
 	}
 
@@ -48,13 +49,13 @@ func (s *AdvertisementAPIService) CreateAdvertisement(ctx context.Context, req *
 
 	adv.UserId = userCliams.UserId
 	if err = s.dbModel.Create(adv); err != nil {
-		s.logger.Error("CreateAdvertisement", zap.Error(err))
+		s.logger.Errorf("CreateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "创建广告失败:"+err.Error())
 	}
 
 	res := &pb.Advertisement{}
 	if err = util.CopyStruct(adv, res); err != nil {
-		s.logger.Error("CreateAdvertisement", zap.Error(err))
+		s.logger.Errorf("CreateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 	return res, nil
@@ -68,13 +69,13 @@ func (s *AdvertisementAPIService) UpdateAdvertisement(ctx context.Context, req *
 
 	adv := &model.Advertisement{}
 	if err = util.CopyStruct(req, adv); err != nil {
-		s.logger.Error("UpdateAdvertisement", zap.Error(err))
+		s.logger.Errorf("UpdateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "更新广告失败:"+err.Error())
 	}
 
 	err = s.dbModel.UpdateByFields(adv, model.TableAdvertisement, adv.Id)
 	if err != nil {
-		s.logger.Error("UpdateAdvertisement", zap.Error(err))
+		s.logger.Errorf("UpdateAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "更新广告失败:"+err.Error())
 	}
 	return &emptypb.Empty{}, nil
@@ -93,52 +94,11 @@ func (s *AdvertisementAPIService) DeleteAdvertisement(ctx context.Context,
 
 	err = s.dbModel.DeleteByIds(req.Id, &model.Advertisement{})
 	if err != nil {
-		s.logger.Error("DeleteAdvertisement", zap.Error(err))
+		s.logger.Errorf("DeleteAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "删除广告失败:"+err.Error())
 	}
 
 	return &emptypb.Empty{}, nil
-}
-
-func (s *AdvertisementAPIService) GetAdvertisementByPosition(ctx context.Context, req *pb.GetAdvertisementByPositionRequest) (*pb.ListAdvertisementReply, error) {
-	// 根据广告位获取广告
-	now := time.Now()
-	opt := &model.OptionGetList{
-		WithCount: false,
-		Page:      1,
-		Size:      100000,
-		QueryIn: map[string][]interface{}{
-			"enable": {true},
-		},
-		QueryRange: map[string][2]interface{}{
-			"start_time": {nil, now},
-			"end_time":   {now, nil},
-		},
-	}
-
-	if len(req.Position) > 0 {
-		opt.QueryIn["position"] = util.Slice2Interface(req.Position)
-	}
-
-	advs, _, err := s.dbModel.GetAdvertisementList(opt)
-	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("GetAdvertisement", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, "获取广告失败:"+err.Error())
-	}
-
-	res := &pb.ListAdvertisementReply{}
-	err = util.CopyStruct(advs, &res.Advertisement)
-	if err != nil {
-		s.logger.Error("GetAdvertisement", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	for idx := range res.Advertisement {
-		// 去除备注
-		res.Advertisement[idx].Remark = ""
-	}
-
-	return res, nil
 }
 
 func (s *AdvertisementAPIService) GetAdvertisement(ctx context.Context, req *pb.GetAdvertisementRequest) (*pb.Advertisement, error) {
@@ -154,14 +114,14 @@ func (s *AdvertisementAPIService) GetAdvertisement(ctx context.Context, req *pb.
 	ad := &model.Advertisement{}
 	err = s.dbModel.GetByID(req.Id, ad)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("GetAdvertisement", zap.Error(err))
+		s.logger.Errorf("GetAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "获取广告失败:"+err.Error())
 	}
 
 	res := &pb.Advertisement{}
 	err = util.CopyStruct(ad, res)
 	if err != nil {
-		s.logger.Error("GetAdvertisement", zap.Error(err))
+		s.logger.Errorf("GetAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -183,11 +143,11 @@ func (s *AdvertisementAPIService) ListAdvertisement(ctx context.Context, req *pb
 	}
 
 	if len(req.Position) > 0 {
-		opt.QueryIn["position"] = util.Slice2Interface(req.Position)
+		opt.QueryIn["position"] = cvt.ToArray(req.Position)
 	}
 
 	if len(req.Enable) > 0 {
-		opt.QueryIn["enable"] = util.Slice2Interface(req.Enable)
+		opt.QueryIn["enable"] = cvt.ToArray(req.Enable)
 	}
 
 	if req.Wd != "" {
@@ -199,7 +159,7 @@ func (s *AdvertisementAPIService) ListAdvertisement(ctx context.Context, req *pb
 
 	advs, total, err := s.dbModel.GetAdvertisementList(opt)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("ListAdvertisement", zap.Error(err))
+		s.logger.Errorf("ListAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "获取广告列表失败:"+err.Error())
 	}
 
@@ -208,7 +168,7 @@ func (s *AdvertisementAPIService) ListAdvertisement(ctx context.Context, req *pb
 	}
 	err = util.CopyStruct(advs, &res.Advertisement)
 	if err != nil {
-		s.logger.Error("ListAdvertisement", zap.Error(err))
+		s.logger.Errorf("ListAdvertisement", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 

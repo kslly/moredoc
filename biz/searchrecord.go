@@ -6,9 +6,10 @@ import (
 
 	pb "moredoc/api/v1"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -18,11 +19,11 @@ import (
 type SearchRecordAPIService struct {
 	pb.UnimplementedSearchRecordAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewSearchRecordAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *SearchRecordAPIService) {
-	return &SearchRecordAPIService{dbModel: dbModel, logger: logger.Named("SearchRecordAPIService")}
+func NewSearchRecordAPIService(dbModel *model.DBModel, logger logger.Logger) (service *SearchRecordAPIService) {
+	return &SearchRecordAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *SearchRecordAPIService) DeleteSearchRecord(ctx context.Context, req *pb.DeleteSearchRecordRequest) (*emptypb.Empty, error) {
@@ -61,7 +62,7 @@ func (s *SearchRecordAPIService) ListSearchRecord(ctx context.Context, req *pb.L
 	}
 
 	if len(req.UserId) > 0 {
-		opt.QueryIn["user_id"] = util.Slice2Interface(req.UserId)
+		opt.QueryIn["user_id"] = cvt.ToArray(req.UserId)
 	}
 
 	if req.Ip != "" {

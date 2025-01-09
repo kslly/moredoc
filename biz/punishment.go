@@ -7,6 +7,8 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
 	"go.uber.org/zap"
@@ -19,11 +21,11 @@ import (
 type PunishmentAPIService struct {
 	pb.UnimplementedPunishmentAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewPunishmentAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *PunishmentAPIService) {
-	return &PunishmentAPIService{dbModel: dbModel, logger: logger.Named("PunishmentAPIService")}
+func NewPunishmentAPIService(dbModel *model.DBModel, logger logger.Logger) (service *PunishmentAPIService) {
+	return &PunishmentAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *PunishmentAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -57,11 +59,11 @@ func (s *PunishmentAPIService) CreatePunishment(ctx context.Context, req *pb.Cre
 				Remark:  req.Remark,
 				EndTime: req.EndTime,
 			}
-			s.logger.Debug("CreatePunishment", zap.Any("punishment", punishment), zap.Any("req", req))
+			s.logger.Debugf("CreatePunishment", zap.Any("punishment", punishment), zap.Any("req", req))
 			punishment.Operators = s.dbModel.MakePunishmentOperators(userClaims.UserId, typ)
 			err = s.dbModel.Create(punishment)
 			if err != nil {
-				s.logger.Error("CreatePunishment", zap.Error(err))
+				s.logger.Errorf("CreatePunishment", zap.Error(err))
 				return nil, status.Errorf(codes.Internal, err.Error())
 			}
 		}
@@ -78,11 +80,11 @@ func (s *PunishmentAPIService) UpdatePunishment(ctx context.Context, req *pb.Pun
 	punishment := &model.Punishment{}
 	err = util.CopyStruct(req, punishment)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	s.logger.Debug("UpdatePunishment", zap.Any("punishment", punishment), zap.Any("req", req))
+	s.logger.Debugf("UpdatePunishment", zap.Any("punishment", punishment), zap.Any("req", req))
 
 	if existPunishment, _ := s.dbModel.GetPunishment(punishment.Id, "id", "operators"); existPunishment.Id > 0 {
 		punishment.Operators = s.dbModel.MakePunishmentOperators(userClaims.UserId, req.Type, existPunishment.Operators)
@@ -90,7 +92,7 @@ func (s *PunishmentAPIService) UpdatePunishment(ctx context.Context, req *pb.Pun
 
 	err = s.dbModel.UpdateByFields(punishment, model.TablePunishment, punishment.Id)
 	if err != nil {
-		s.logger.Error("UpdatePunishment", zap.Error(err))
+		s.logger.Errorf("UpdatePunishment", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -105,14 +107,14 @@ func (s *PunishmentAPIService) GetPunishment(ctx context.Context, req *pb.GetPun
 
 	punishment, err := s.dbModel.GetPunishment(req.Id)
 	if err != nil {
-		s.logger.Error("GetPunishment", zap.Error(err))
+		s.logger.Errorf("GetPunishment", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	res := &pb.Punishment{}
 	err = util.CopyStruct(punishment, res)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -141,15 +143,15 @@ func (s *PunishmentAPIService) ListPunishment(ctx context.Context, req *pb.ListP
 	}
 
 	if len(req.UserId) > 0 {
-		opt.QueryIn["user_id"] = util.Slice2Interface(req.UserId)
+		opt.QueryIn["user_id"] = cvt.ToArray(req.UserId)
 	}
 
 	if len(req.Type) > 0 {
-		opt.QueryIn["type"] = util.Slice2Interface(req.Type)
+		opt.QueryIn["type"] = cvt.ToArray(req.Type)
 	}
 
 	if len(req.Enable) > 0 {
-		opt.QueryIn["enable"] = util.Slice2Interface(req.Enable)
+		opt.QueryIn["enable"] = cvt.ToArray(req.Enable)
 	}
 
 	if req.Order != "" {
@@ -164,7 +166,7 @@ func (s *PunishmentAPIService) ListPunishment(ctx context.Context, req *pb.ListP
 
 	data, total, err := s.dbModel.GetPunishmentList(opt)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("GetPunishmentList", zap.Error(err))
+		s.logger.Errorf("GetPunishmentList", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -174,7 +176,7 @@ func (s *PunishmentAPIService) ListPunishment(ctx context.Context, req *pb.ListP
 
 	err = util.CopyStruct(data, &res.Punishment)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -218,14 +220,14 @@ func (s *PunishmentAPIService) CancelPunishment(ctx context.Context, req *pb.Can
 		return nil, err
 	}
 
-	s.logger.Debug("CancelPunishment", zap.Any("req", req))
+	s.logger.Debugf("CancelPunishment", zap.Any("req", req))
 
 	data, _, err := s.dbModel.GetPunishmentList(&model.OptionGetList{
 		Ids: req.Id,
 	})
 
 	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("GetPunishmentList", zap.Error(err))
+		s.logger.Errorf("GetPunishmentList", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -234,7 +236,7 @@ func (s *PunishmentAPIService) CancelPunishment(ctx context.Context, req *pb.Can
 		item.Operators = s.dbModel.MakePunishmentOperators(userCliams.UserId, 0, item.Operators)
 		err = s.dbModel.UpdateByFields(&item, model.TablePunishment, item.Id, "enable", "operators")
 		if err != nil {
-			s.logger.Error("UpdatePunishment", zap.Error(err))
+			s.logger.Errorf("UpdatePunishment", zap.Error(err))
 			return nil, status.Errorf(codes.Internal, err.Error())
 		}
 	}

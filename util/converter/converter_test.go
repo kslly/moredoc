@@ -1,12 +1,12 @@
 package converter
 
 import (
+	"log"
+	"moredoc/pkg/logger"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 var (
@@ -19,8 +19,12 @@ var (
 )
 
 func init() {
-	logger, _ := zap.NewDevelopment()
-	converter = NewConverter(logger)
+	lg, err := logger.NewLogger()
+	if err != nil {
+		log.Print("instantiation logger error: ", err)
+		return
+	}
+	converter = NewConverter(lg)
 	converter.SetCachePath("../../cache/convert")
 }
 

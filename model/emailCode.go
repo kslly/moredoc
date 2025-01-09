@@ -23,7 +23,7 @@ type EmailCode struct {
 func (m *DBModel) GetLatestEmailCode(email string, codeType int32) (code EmailCode) {
 	err := m.db.Where("email = ? and code_type = ?", email, codeType).Order("id desc").Find(&code).Error
 	if err != nil {
-		m.logger.Error("GetLatestEmailCode", zap.Error(err))
+		m.logger.Errorf("GetLatestEmailCode", zap.Error(err))
 	}
 	return
 }

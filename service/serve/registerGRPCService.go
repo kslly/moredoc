@@ -6,6 +6,7 @@ import (
 	"moredoc/biz"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"go.uber.org/zap"
@@ -13,14 +14,14 @@ import (
 )
 
 // RegisterGRPCService 注册grpc服务
-func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint string, authMiddleWare *auth.Auth,
+func RegisterGRPCService(dbModel *model.DBModel, logger logger.Logger, endpoint string, authMiddleWare *auth.Auth,
 	grpcServer *grpc.Server, gwmux *runtime.ServeMux, dialOpts ...grpc.DialOption) (err error) {
 	// 用户API接口服务
 	userAPIService := biz.NewUserAPIService(dbModel, logger, authMiddleWare)
 	v1.RegisterUserAPIServer(grpcServer, userAPIService)
 	err = v1.RegisterUserAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterUserAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterUserAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -29,7 +30,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterGroupAPIServer(grpcServer, groupAPIService)
 	err = v1.RegisterGroupAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterGroupAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterGroupAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -38,7 +39,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterFriendlinkAPIServer(grpcServer, friendlinkAPIService)
 	err = v1.RegisterFriendlinkAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterFriendlinkAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterFriendlinkAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -47,7 +48,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterAttachmentAPIServer(grpcServer, attachmentAPIService)
 	err = v1.RegisterAttachmentAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterAttachmentAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterAttachmentAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -56,7 +57,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterBannerAPIServer(grpcServer, bannerAPIService)
 	err = v1.RegisterBannerAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterBannerAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterBannerAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -65,7 +66,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterPermissionAPIServer(grpcServer, permissionAPIService)
 	err = v1.RegisterPermissionAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterPermissionAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterPermissionAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -74,7 +75,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterConfigAPIServer(grpcServer, configAPIService)
 	err = v1.RegisterConfigAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterConfigAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterConfigAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -83,7 +84,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterCategoryAPIServer(grpcServer, categoryAPIService)
 	err = v1.RegisterCategoryAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterCategoryAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterCategoryAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -92,7 +93,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterDocumentAPIServer(grpcServer, documentAPIService)
 	err = v1.RegisterDocumentAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterDocumentAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterDocumentAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -100,7 +101,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterRecycleAPIServer(grpcServer, documentAPIService)
 	err = v1.RegisterRecycleAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterRecycleAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterRecycleAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -109,7 +110,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterArticleAPIServer(grpcServer, articleAPIService)
 	err = v1.RegisterArticleAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterArticleAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterArticleAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -118,7 +119,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterFavoriteAPIServer(grpcServer, favoriteAPIService)
 	err = v1.RegisterFavoriteAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterFavoriteAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterFavoriteAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -127,7 +128,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterCommentAPIServer(grpcServer, commentAPIService)
 	err = v1.RegisterCommentAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterCommentAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterCommentAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -136,7 +137,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterReportAPIServer(grpcServer, reportAPIService)
 	err = v1.RegisterReportAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterReportAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterReportAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -145,7 +146,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterNavigationAPIServer(grpcServer, navgationAPIService)
 	err = v1.RegisterNavigationAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterNavigationAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterNavigationAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -154,7 +155,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterPunishmentAPIServer(grpcServer, punishmentAPIService)
 	err = v1.RegisterPunishmentAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterPunishmentAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterPunishmentAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -163,7 +164,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterAdvertisementAPIServer(grpcServer, advertisementAPIService)
 	err = v1.RegisterAdvertisementAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterAdvertisementAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterAdvertisementAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -172,7 +173,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterSearchRecordAPIServer(grpcServer, searchRecordAPIService)
 	err = v1.RegisterSearchRecordAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterSearchRecordAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterSearchRecordAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 
@@ -181,7 +182,7 @@ func RegisterGRPCService(dbModel *model.DBModel, logger *zap.Logger, endpoint st
 	v1.RegisterLanguageAPIServer(grpcServer, languageAPIService)
 	err = v1.RegisterLanguageAPIHandlerFromEndpoint(context.Background(), gwmux, endpoint, dialOpts)
 	if err != nil {
-		logger.Error("RegisterLanguageAPIHandlerFromEndpoint", zap.Error(err))
+		logger.Errorf("RegisterLanguageAPIHandlerFromEndpoint", zap.Error(err))
 		return
 	}
 

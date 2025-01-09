@@ -452,7 +452,6 @@ type NavigationAPIClient interface {
 	UpdateNavigation(ctx context.Context, in *Navigation, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	DeleteNavigation(ctx context.Context, in *DeleteNavigationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	GetNavigation(ctx context.Context, in *GetNavigationRequest, opts ...grpc.CallOption) (*Navigation, error)
-	ListNavigation(ctx context.Context, in *ListNavigationRequest, opts ...grpc.CallOption) (*ListNavigationReply, error)
 }
 
 type navigationAPIClient struct {
@@ -499,14 +498,6 @@ func (c *navigationAPIClient) GetNavigation(ctx context.Context, in *GetNavigati
 	return out, nil
 }
 
-func (c *navigationAPIClient) ListNavigation(ctx context.Context, in *ListNavigationRequest, opts ...grpc.CallOption) (*ListNavigationReply, error) {
-	out := new(ListNavigationReply)
-	err := c.cc.Invoke(ctx, "/api.v1.NavigationAPI/ListNavigation", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 // NavigationAPIServer is the server API for NavigationAPI service.
 type NavigationAPIServer interface {
@@ -514,7 +505,6 @@ type NavigationAPIServer interface {
 	UpdateNavigation(context.Context, *Navigation) (*emptypb.Empty, error)
 	DeleteNavigation(context.Context, *DeleteNavigationRequest) (*emptypb.Empty, error)
 	GetNavigation(context.Context, *GetNavigationRequest) (*Navigation, error)
-	ListNavigation(context.Context, *ListNavigationRequest) (*ListNavigationReply, error)
 }
 
 // UnimplementedNavigationAPIServer can be embedded to have forward compatible implementations.
@@ -532,9 +522,6 @@ func (*UnimplementedNavigationAPIServer) DeleteNavigation(ctx context.Context, r
 }
 func (*UnimplementedNavigationAPIServer) GetNavigation(ctx context.Context, req *GetNavigationRequest) (*Navigation, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNavigation not implemented")
-}
-func (*UnimplementedNavigationAPIServer) ListNavigation(ctx context.Context, req *ListNavigationRequest) (*ListNavigationReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListNavigation not implemented")
 }
 
 func RegisterNavigationAPIServer(s *grpc.Server, srv NavigationAPIServer) {
@@ -613,24 +600,6 @@ func _NavigationAPI_GetNavigation_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _NavigationAPI_ListNavigation_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListNavigationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NavigationAPIServer).ListNavigation(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.NavigationAPI/ListNavigation",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NavigationAPIServer).ListNavigation(ctx, req.(*ListNavigationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 var _NavigationAPI_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.v1.NavigationAPI",
 	HandlerType: (*NavigationAPIServer)(nil),
@@ -650,10 +619,6 @@ var _NavigationAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetNavigation",
 			Handler:    _NavigationAPI_GetNavigation_Handler,
-		},
-		{
-			MethodName: "ListNavigation",
-			Handler:    _NavigationAPI_ListNavigation_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

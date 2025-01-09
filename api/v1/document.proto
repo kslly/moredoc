@@ -190,27 +190,11 @@ message DownloadDocumentReply { string url = 1; }
 // 文档服务
 service DocumentAPI {
 
-  // 针对首页的文档查询
-  rpc ListDocumentForHome(ListDocumentForHomeRequest)
-      returns (ListDocumentForHomeResponse) {
-    option (google.api.http) = {
-      get : '/api/v1/document/home',
-    };
-  }
-
   // 设置文档推荐
   rpc SetDocumentRecommend(SetDocumentRecommendRequest)
       returns (google.protobuf.Empty) {
     option (google.api.http) = {
       put : '/api/v1/document/recommend',
-      body : '*',
-    };
-  }
-
-  // 创建文档
-  rpc CreateDocument(CreateDocumentRequest) returns (google.protobuf.Empty) {
-    option (google.api.http) = {
-      post : '/api/v1/document',
       body : '*',
     };
   }
@@ -256,13 +240,6 @@ service DocumentAPI {
     option (google.api.http) = {
       put : '/api/v1/document/check',
       body : '*',
-    };
-  }
-
-  // 文档列表查询
-  rpc ListDocument(ListDocumentRequest) returns (ListDocumentReply) {
-    option (google.api.http) = {
-      get : '/api/v1/document/list',
     };
   }
 

@@ -49,6 +49,7 @@ type User struct {
 	CreatedAt     *time.Time `form:"created_at" json:"created_at,omitempty" gorm:"column:created_at;type:datetime;comment:创建时间;"`
 	UpdatedAt     *time.Time `form:"updated_at" json:"updated_at,omitempty" gorm:"column:updated_at;type:datetime;comment:更新时间;"`
 	Remark        string     `form:"remark" json:"remark,omitempty" gorm:"column:remark;type:varchar(255);size:255;comment:备注;"`
+	GroupIds      []int64    `form:"group_id" json:"group_id,omitempty" gorm:"column:group_id;type:bigint(20);size:20;default:0;index:user_group,unique;comment:组ID;"`
 }
 
 // GetUserPublicFields 获取用户公开字段
@@ -69,11 +70,11 @@ func (m *DBModel) CreateUser(user *User, groupIds ...int64) (err error) {
 			sess.Commit()
 		}
 	}()
-
+	user.GroupIds = append(user.GroupIds, groupIds...)
 	// 1. 添加用户
 	err = sess.Create(user).Error
 	if err != nil {
-		m.logger.Error("CreateUser", zap.Error(err))
+		m.logger.Errorf("CreateUser", zap.Error(err))
 		return
 	}
 
@@ -85,14 +86,14 @@ func (m *DBModel) CreateUser(user *User, groupIds ...int64) (err error) {
 		}
 		err = sess.Create(group).Error
 		if err != nil {
-			m.logger.Error("CreateUser", zap.Error(err))
+			m.logger.Errorf("CreateUser", zap.Error(err))
 			return
 		}
 
 		// 3. 添加用户统计
 		err = sess.Model(&Group{}).Where("id = ?", groupId).Update("user_count", gorm.Expr("user_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("CreateUser", zap.Error(err))
+			m.logger.Errorf("CreateUser", zap.Error(err))
 			return
 		}
 	}
@@ -141,7 +142,7 @@ func (m *DBModel) GetUserByUsername(username string, fields ...string) (user Use
 
 	err = db.First(&user).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetUserByUsername", zap.Error(err))
+		m.logger.Errorf("GetUserByUsername", zap.Error(err))
 		return
 	}
 	return
@@ -158,7 +159,7 @@ func (m *DBModel) GetUserByEmail(email string, fields ...string) (user User, err
 
 	err = db.First(&user).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetUserByEmail", zap.Error(err))
+		m.logger.Errorf("GetUserByEmail", zap.Error(err))
 		return
 	}
 	return
@@ -180,7 +181,7 @@ func (m *DBModel) DeleteUser(ids []int64) (err error) {
 	// id==1的用户不允许删除
 	err = sess.Where("id in (?) and id != ?", ids, 1).Delete(&User{}).Error
 	if err != nil {
-		m.logger.Error("DeleteUser", zap.Error(err))
+		m.logger.Errorf("DeleteUser", zap.Error(err))
 	}
 	return
 }
@@ -205,7 +206,7 @@ func (m *DBModel) GetUserPermissinsByUserId(userId int64) (permissions []*Permis
 		// id==1的用户，拥有所有权限
 		err = m.db.Find(&permissions).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
-			m.logger.Error("GetUserPermissinsByUserId", zap.Error(err))
+			m.logger.Errorf("GetUserPermissinsByUserId", zap.Error(err))
 		}
 		return
 	}
@@ -229,7 +230,7 @@ func (m *DBModel) GetUserPermissinsByUserId(userId int64) (permissions []*Permis
 	sql = fmt.Sprintf(sql, TablePermission, TableGroupPermission, TableUserGroup)
 	err = m.db.Raw(sql, userId).Find(&permissions).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetUserPermissinsByUserId", zap.Error(err))
+		m.logger.Errorf("GetUserPermissinsByUserId", zap.Error(err))
 		return
 	}
 	err = nil
@@ -257,7 +258,7 @@ func (m *DBModel) SetUserGroupAndPassword(userId int64, groupId []int64, passwor
 	// 删除旧的关联用户组
 	err = tx.Where("user_id = ?", userId).Delete(&UserGroup{}).Error
 	if err != nil {
-		m.logger.Error("SetUserGroupAndPassword", zap.Error(err))
+		m.logger.Errorf("SetUserGroupAndPassword", zap.Error(err))
 		return
 	}
 
@@ -265,7 +266,7 @@ func (m *DBModel) SetUserGroupAndPassword(userId int64, groupId []int64, passwor
 	for _, existUsersGroup := range existUsersGroups {
 		err = tx.Model(&Group{}).Where("id = ?", existUsersGroup.GroupId).Update("user_count", gorm.Expr("user_count - ?", 1)).Error
 		if err != nil {
-			m.logger.Error("SetUserGroupAndPassword", zap.Error(err))
+			m.logger.Errorf("SetUserGroupAndPassword", zap.Error(err))
 			return
 		}
 	}
@@ -275,7 +276,7 @@ func (m *DBModel) SetUserGroupAndPassword(userId int64, groupId []int64, passwor
 		userGroups = append(userGroups, UserGroup{UserId: userId, GroupId: groupId})
 		err = tx.Model(&Group{}).Where("id = ?", groupId).Update("user_count", gorm.Expr("user_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("SetUserGroupAndPassword", zap.Error(err))
+			m.logger.Errorf("SetUserGroupAndPassword", zap.Error(err))
 			return
 		}
 	}
@@ -283,7 +284,7 @@ func (m *DBModel) SetUserGroupAndPassword(userId int64, groupId []int64, passwor
 	if len(userGroups) > 0 {
 		err = tx.Create(&userGroups).Error
 		if err != nil {
-			m.logger.Error("SetUserGroupAndPassword", zap.Error(err))
+			m.logger.Errorf("SetUserGroupAndPassword", zap.Error(err))
 			return
 		}
 	}
@@ -291,7 +292,7 @@ func (m *DBModel) SetUserGroupAndPassword(userId int64, groupId []int64, passwor
 	if len(password) > 0 && password[0] != "" {
 		err = m.UpdateUserPassword(userId, password[0], tx)
 		if err != nil {
-			m.logger.Error("UpdateUserPassword", zap.Error(err))
+			m.logger.Errorf("UpdateUserPassword", zap.Error(err))
 			return
 		}
 	}

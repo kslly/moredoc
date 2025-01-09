@@ -71,10 +71,4 @@ service NavigationAPI {
       get : '/api/v1/navigation',
     };
   }
-
-  rpc ListNavigation(ListNavigationRequest) returns (ListNavigationReply) {
-    option (google.api.http) = {
-      get : '/api/v1/navigation/list',
-    };
-  }
 }

@@ -1666,10 +1666,6 @@ const _ = grpc.SupportPackageIsVersion4
 type UserAPIClient interface {
 	// 用户注册
 	Register(ctx context.Context, in *RegisterAndLoginRequest, opts ...grpc.CallOption) (*LoginReply, error)
-	// 用户登录
-	Login(ctx context.Context, in *RegisterAndLoginRequest, opts ...grpc.CallOption) (*LoginReply, error)
-	// 退出登录
-	Logout(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 查询用户信息。如果传递了Id参数，则表示查询用户的公开信息，否则查询当前用户的私有信息
 	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*User, error)
 	// 更新用户密码。如果不传用户ID，则表示更新当前用户的密码；
@@ -1687,20 +1683,12 @@ type UserAPIClient interface {
 	// 查询用户列表。对于非管理员，返回相应用户的公开信息；
 	// 对于管理员，返回相应用户的绝大部分信息
 	ListUser(ctx context.Context, in *ListUserRequest, opts ...grpc.CallOption) (*ListUserReply, error)
-	// GetUserCaptcha 获取用户验证码
-	GetUserCaptcha(ctx context.Context, in *GetUserCaptchaRequest, opts ...grpc.CallOption) (*GetUserCaptchaReply, error)
-	// GetUserCaptcha 获取用户验证码
-	GetUserPermissions(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetUserPermissionsReply, error)
-	// 用户是否可以上传文档
-	CanIUploadDocument(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 用户是否可以发布文章
 	CanIPublishArticle(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 获取用户动态，包括获取关注的用户的动态
 	ListUserDynamic(ctx context.Context, in *ListUserDynamicRequest, opts ...grpc.CallOption) (*ListUserDynamicReply, error)
 	// 每日签到
 	SignToday(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Sign, error)
-	// 获取今日已签到记录
-	GetSignedToday(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Sign, error)
 	// 查询用户的下载记录
 	ListUserDownload(ctx context.Context, in *ListUserDownloadRequest, opts ...grpc.CallOption) (*ListUserDownloadReply, error)
 	// 找回密码：第一步，发送验证码
@@ -1728,23 +1716,6 @@ func (c *userAPIClient) Register(ctx context.Context, in *RegisterAndLoginReques
 	return out, nil
 }
 
-func (c *userAPIClient) Login(ctx context.Context, in *RegisterAndLoginRequest, opts ...grpc.CallOption) (*LoginReply, error) {
-	out := new(LoginReply)
-	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/Login", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userAPIClient) Logout(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/Logout", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 func (c *userAPIClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*User, error) {
 	out := new(User)
@@ -1809,32 +1780,6 @@ func (c *userAPIClient) ListUser(ctx context.Context, in *ListUserRequest, opts 
 	return out, nil
 }
 
-func (c *userAPIClient) GetUserCaptcha(ctx context.Context, in *GetUserCaptchaRequest, opts ...grpc.CallOption) (*GetUserCaptchaReply, error) {
-	out := new(GetUserCaptchaReply)
-	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/GetUserCaptcha", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userAPIClient) GetUserPermissions(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*GetUserPermissionsReply, error) {
-	out := new(GetUserPermissionsReply)
-	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/GetUserPermissions", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userAPIClient) CanIUploadDocument(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/CanIUploadDocument", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 func (c *userAPIClient) CanIPublishArticle(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
@@ -1857,15 +1802,6 @@ func (c *userAPIClient) ListUserDynamic(ctx context.Context, in *ListUserDynamic
 func (c *userAPIClient) SignToday(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Sign, error) {
 	out := new(Sign)
 	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/SignToday", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userAPIClient) GetSignedToday(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Sign, error) {
-	out := new(Sign)
-	err := c.cc.Invoke(ctx, "/api.v1.UserAPI/GetSignedToday", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1912,10 +1848,6 @@ func (c *userAPIClient) SendEmailCode(ctx context.Context, in *SendEmailCodeRequ
 type UserAPIServer interface {
 	// 用户注册
 	Register(context.Context, *RegisterAndLoginRequest) (*LoginReply, error)
-	// 用户登录
-	Login(context.Context, *RegisterAndLoginRequest) (*LoginReply, error)
-	// 退出登录
-	Logout(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	// 查询用户信息。如果传递了Id参数，则表示查询用户的公开信息，否则查询当前用户的私有信息
 	GetUser(context.Context, *GetUserRequest) (*User, error)
 	// 更新用户密码。如果不传用户ID，则表示更新当前用户的密码；
@@ -1933,20 +1865,12 @@ type UserAPIServer interface {
 	// 查询用户列表。对于非管理员，返回相应用户的公开信息；
 	// 对于管理员，返回相应用户的绝大部分信息
 	ListUser(context.Context, *ListUserRequest) (*ListUserReply, error)
-	// GetUserCaptcha 获取用户验证码
-	GetUserCaptcha(context.Context, *GetUserCaptchaRequest) (*GetUserCaptchaReply, error)
-	// GetUserCaptcha 获取用户验证码
-	GetUserPermissions(context.Context, *emptypb.Empty) (*GetUserPermissionsReply, error)
-	// 用户是否可以上传文档
-	CanIUploadDocument(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	// 用户是否可以发布文章
 	CanIPublishArticle(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	// 获取用户动态，包括获取关注的用户的动态
 	ListUserDynamic(context.Context, *ListUserDynamicRequest) (*ListUserDynamicReply, error)
 	// 每日签到
 	SignToday(context.Context, *emptypb.Empty) (*Sign, error)
-	// 获取今日已签到记录
-	GetSignedToday(context.Context, *emptypb.Empty) (*Sign, error)
 	// 查询用户的下载记录
 	ListUserDownload(context.Context, *ListUserDownloadRequest) (*ListUserDownloadReply, error)
 	// 找回密码：第一步，发送验证码
@@ -1964,12 +1888,7 @@ type UnimplementedUserAPIServer struct {
 func (*UnimplementedUserAPIServer) Register(ctx context.Context, req *RegisterAndLoginRequest) (*LoginReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Register not implemented")
 }
-func (*UnimplementedUserAPIServer) Login(ctx context.Context, req *RegisterAndLoginRequest) (*LoginReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Login not implemented")
-}
-func (*UnimplementedUserAPIServer) Logout(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Logout not implemented")
-}
+
 func (*UnimplementedUserAPIServer) GetUser(ctx context.Context, req *GetUserRequest) (*User, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUser not implemented")
 }
@@ -1991,15 +1910,7 @@ func (*UnimplementedUserAPIServer) SetUser(ctx context.Context, req *SetUserRequ
 func (*UnimplementedUserAPIServer) ListUser(ctx context.Context, req *ListUserRequest) (*ListUserReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUser not implemented")
 }
-func (*UnimplementedUserAPIServer) GetUserCaptcha(ctx context.Context, req *GetUserCaptchaRequest) (*GetUserCaptchaReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUserCaptcha not implemented")
-}
-func (*UnimplementedUserAPIServer) GetUserPermissions(ctx context.Context, req *emptypb.Empty) (*GetUserPermissionsReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUserPermissions not implemented")
-}
-func (*UnimplementedUserAPIServer) CanIUploadDocument(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CanIUploadDocument not implemented")
-}
+
 func (*UnimplementedUserAPIServer) CanIPublishArticle(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CanIPublishArticle not implemented")
 }
@@ -2008,9 +1919,6 @@ func (*UnimplementedUserAPIServer) ListUserDynamic(ctx context.Context, req *Lis
 }
 func (*UnimplementedUserAPIServer) SignToday(ctx context.Context, req *emptypb.Empty) (*Sign, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SignToday not implemented")
-}
-func (*UnimplementedUserAPIServer) GetSignedToday(ctx context.Context, req *emptypb.Empty) (*Sign, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSignedToday not implemented")
 }
 func (*UnimplementedUserAPIServer) ListUserDownload(ctx context.Context, req *ListUserDownloadRequest) (*ListUserDownloadReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUserDownload not implemented")
@@ -2043,42 +1951,6 @@ func _UserAPI_Register_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserAPIServer).Register(ctx, req.(*RegisterAndLoginRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserAPI_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RegisterAndLoginRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserAPIServer).Login(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.UserAPI/Login",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserAPIServer).Login(ctx, req.(*RegisterAndLoginRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserAPI_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserAPIServer).Logout(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.UserAPI/Logout",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserAPIServer).Logout(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2209,60 +2081,6 @@ func _UserAPI_ListUser_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _UserAPI_GetUserCaptcha_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserCaptchaRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserAPIServer).GetUserCaptcha(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.UserAPI/GetUserCaptcha",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserAPIServer).GetUserCaptcha(ctx, req.(*GetUserCaptchaRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserAPI_GetUserPermissions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserAPIServer).GetUserPermissions(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.UserAPI/GetUserPermissions",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserAPIServer).GetUserPermissions(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserAPI_CanIUploadDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserAPIServer).CanIUploadDocument(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.UserAPI/CanIUploadDocument",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserAPIServer).CanIUploadDocument(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _UserAPI_CanIPublishArticle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -2313,24 +2131,6 @@ func _UserAPI_SignToday_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserAPIServer).SignToday(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserAPI_GetSignedToday_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserAPIServer).GetSignedToday(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.UserAPI/GetSignedToday",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserAPIServer).GetSignedToday(ctx, req.(*emptypb.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2416,14 +2216,6 @@ var _UserAPI_serviceDesc = grpc.ServiceDesc{
 			Handler:    _UserAPI_Register_Handler,
 		},
 		{
-			MethodName: "Login",
-			Handler:    _UserAPI_Login_Handler,
-		},
-		{
-			MethodName: "Logout",
-			Handler:    _UserAPI_Logout_Handler,
-		},
-		{
 			MethodName: "GetUser",
 			Handler:    _UserAPI_GetUser_Handler,
 		},
@@ -2452,18 +2244,6 @@ var _UserAPI_serviceDesc = grpc.ServiceDesc{
 			Handler:    _UserAPI_ListUser_Handler,
 		},
 		{
-			MethodName: "GetUserCaptcha",
-			Handler:    _UserAPI_GetUserCaptcha_Handler,
-		},
-		{
-			MethodName: "GetUserPermissions",
-			Handler:    _UserAPI_GetUserPermissions_Handler,
-		},
-		{
-			MethodName: "CanIUploadDocument",
-			Handler:    _UserAPI_CanIUploadDocument_Handler,
-		},
-		{
 			MethodName: "CanIPublishArticle",
 			Handler:    _UserAPI_CanIPublishArticle_Handler,
 		},
@@ -2474,10 +2254,6 @@ var _UserAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SignToday",
 			Handler:    _UserAPI_SignToday_Handler,
-		},
-		{
-			MethodName: "GetSignedToday",
-			Handler:    _UserAPI_GetSignedToday_Handler,
 		},
 		{
 			MethodName: "ListUserDownload",

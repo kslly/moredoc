@@ -1,7 +1,7 @@
 package model
 
 import (
-	"moredoc/util"
+	"moredoc/pkg/cvt"
 	"moredoc/util/segword/jieba"
 	"strings"
 	"time"
@@ -51,7 +51,7 @@ func (m *DBModel) GetRelatedArticles(identifier string, fields ...string) (artic
 
 	err = m.db.Where("article_id = ?", article.Id).First(&relate).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetRelatedArticles", zap.Error(err))
+		m.logger.Errorf("GetRelatedArticles", zap.Error(err))
 		return
 	}
 
@@ -80,7 +80,7 @@ func (m *DBModel) GetRelatedArticles(identifier string, fields ...string) (artic
 		opt.QueryLike["keywords"] = keywords
 		opt.QueryLike["description"] = keywords
 	} else {
-		opt.QueryIn["id"] = util.Slice2Interface(ids)
+		opt.QueryIn["id"] = cvt.ToArray(ids)
 	}
 	articles, _, _ = m.GetArticleList(opt)
 	if isExpired && len(articles) > 0 {

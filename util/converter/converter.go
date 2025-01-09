@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"fmt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"os"
 	"os/exec"
@@ -35,7 +36,7 @@ type ConvertCallback func(page int, pagePath string, err error)
 type Converter struct {
 	cachePath string
 	timeout   time.Duration
-	logger    *zap.Logger
+	logger    logger.Logger
 	workspace string
 }
 
@@ -46,7 +47,7 @@ type Page struct {
 
 // NewConverter 创建一个新的转换器。每个不同的原始文档，都需要一个新的转换器。
 // 因为最后可以清空该原始文档及其衍生文件的临时目录，用节省磁盘空间。
-func NewConverter(logger *zap.Logger, timeout ...time.Duration) *Converter {
+func NewConverter(logger logger.Logger, timeout ...time.Duration) *Converter {
 	expire := 1 * time.Hour
 	if len(timeout) > 0 {
 		expire = timeout[0]
@@ -55,7 +56,7 @@ func NewConverter(logger *zap.Logger, timeout ...time.Duration) *Converter {
 	cvt := &Converter{
 		cachePath: defaultCachePath,
 		timeout:   expire,
-		logger:    logger.Named("converter"),
+		logger:    logger,
 	}
 	cvt.workspace = cvt.makeWorkspace()
 	os.MkdirAll(defaultCachePath, os.ModePerm)
@@ -135,10 +136,10 @@ func (c *Converter) ConvertPDFToTxt(src string) (dst string, err error) {
 		dst,
 		src,
 	}
-	c.logger.Info("convert pdf to txt", zap.String("cmd", mutool), zap.Strings("args", args))
+	c.logger.Infof("convert pdf to txt", zap.String("cmd", mutool), zap.Strings("args", args))
 	_, err = command.ExecCommand(mutool, args, c.timeout)
 	if err != nil {
-		c.logger.Error("convert pdf to txt", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("convert pdf to txt", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
 		return
 	}
 	return dst, nil
@@ -222,10 +223,10 @@ func (c *Converter) ConvertPNGToJPG(src string) (dst string, err error) {
 		src,
 		dst,
 	}
-	c.logger.Debug("convert png to jpg", zap.String("cmd", imageMagick), zap.Strings("args", args))
+	c.logger.Debugf("convert png to jpg", zap.String("cmd", imageMagick), zap.Strings("args", args))
 	_, err = command.ExecCommand(imageMagick, args, c.timeout)
 	if err != nil {
-		c.logger.Error("convert png to jpg", zap.String("cmd", imageMagick), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("convert png to jpg", zap.String("cmd", imageMagick), zap.Strings("args", args), zap.Error(err))
 	}
 	return
 }
@@ -238,10 +239,10 @@ func (c *Converter) ConvertPNGToWEBP(src string) (dst string, err error) {
 		src,
 		dst,
 	}
-	c.logger.Debug("convert png to webp", zap.String("cmd", imageMagick), zap.Strings("args", args))
+	c.logger.Debugf("convert png to webp", zap.String("cmd", imageMagick), zap.Strings("args", args))
 	_, err = command.ExecCommand(imageMagick, args, c.timeout)
 	if err != nil {
-		c.logger.Error("convert png to webp", zap.String("cmd", imageMagick), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("convert png to webp", zap.String("cmd", imageMagick), zap.Strings("args", args), zap.Error(err))
 	}
 	return
 }
@@ -259,7 +260,7 @@ func (c *Converter) PDFToPDF(src string) (dst string, err error) {
 	dst = c.workspace + "/dst.pdf"
 	err = util.CopyFile(src, dst)
 	if err != nil {
-		c.logger.Error("copy file error", zap.Error(err))
+		c.logger.Errorf("copy file error", zap.Error(err))
 	}
 	return
 }
@@ -271,7 +272,7 @@ func (c *Converter) convertPDFToPage(src string, fromPage, toPage int, ext strin
 			// 尝试使用 inkscape 转换
 			pages, err = c.convertPDFToPageByInkscape(src, fromPage, toPage, ext)
 			if err != nil {
-				c.logger.Error("convert pdf to page by inkscape", zap.String("cmd", inkscape), zap.Error(err))
+				c.logger.Errorf("convert pdf to page by inkscape", zap.String("cmd", inkscape), zap.Error(err))
 			}
 		}
 	}()
@@ -286,17 +287,17 @@ func (c *Converter) convertPDFToPage(src string, fromPage, toPage int, ext strin
 		pageRange,
 	}
 
-	c.logger.Info("convert pdf to page", zap.String("cmd", mutool), zap.Strings("args", args))
+	c.logger.Infof("convert pdf to page", zap.String("cmd", mutool), zap.Strings("args", args))
 	_, err = command.ExecCommand(mutool, args, c.timeout)
 	if err != nil {
-		c.logger.Error("convert pdf to page", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("convert pdf to page", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
 		return
 	}
 
 	for i := 0; i <= toPage-fromPage; i++ {
 		pagePath := fmt.Sprintf(cacheFileFormat, i+1)
 		if _, err = os.Stat(pagePath); err != nil {
-			c.logger.Error("convert pdf to page", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
+			c.logger.Errorf("convert pdf to page", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
 			break
 		}
 		pages = append(pages, Page{
@@ -323,7 +324,7 @@ func (c *Converter) convertPDFToPageByInkscape(src string, fromPage, toPage int,
 		_, err = command.ExecCommand(inkscape, args, c.timeout)
 		if err != nil {
 			// 兼容 --pages 参数，替换 --pdf-page 参数
-			c.logger.Error("convert pdf to page", zap.String("cmd", inkscape), zap.Strings("args", args), zap.Error(err))
+			c.logger.Errorf("convert pdf to page", zap.String("cmd", inkscape), zap.Strings("args", args), zap.Error(err))
 			argsV2 := []string{
 				"-o", pagePath,
 				"--pages", fmt.Sprintf("%d", fromPage+i),
@@ -332,13 +333,13 @@ func (c *Converter) convertPDFToPageByInkscape(src string, fromPage, toPage int,
 			argsV2 = append(argsV2, src)
 			_, err = command.ExecCommand(inkscape, argsV2, c.timeout)
 			if err != nil {
-				c.logger.Error("convert pdf to page", zap.String("cmd", inkscape), zap.Strings("args", args), zap.Error(err))
+				c.logger.Errorf("convert pdf to page", zap.String("cmd", inkscape), zap.Strings("args", args), zap.Error(err))
 				return
 			}
 		}
 
 		if _, err = os.Stat(pagePath); err != nil {
-			c.logger.Error("convert pdf to page", zap.String("cmd", inkscape), zap.Strings("args", args), zap.Error(err))
+			c.logger.Errorf("convert pdf to page", zap.String("cmd", inkscape), zap.Strings("args", args), zap.Error(err))
 			break
 		}
 
@@ -360,10 +361,10 @@ func (c *Converter) convertToPDFBySoffice(src string) (dst string, err error) {
 		c.workspace,
 	}
 	args = append(args, src)
-	c.logger.Info("convert to pdf by soffice", zap.String("cmd", soffice), zap.Strings("args", args))
+	c.logger.Infof("convert to pdf by soffice", zap.String("cmd", soffice), zap.Strings("args", args))
 	_, err = command.ExecCommand(soffice, args, c.timeout)
 	if err != nil {
-		c.logger.Error("convert to pdf by soffice", zap.String("cmd", soffice), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("convert to pdf by soffice", zap.String("cmd", soffice), zap.Strings("args", args), zap.Error(err))
 	}
 	return
 }
@@ -381,10 +382,10 @@ func (c *Converter) convertToPDFByCalibre(src string) (dst string, err error) {
 		"--pdf-page-margin-top", "36",
 	}
 	os.MkdirAll(filepath.Dir(dst), os.ModePerm)
-	c.logger.Info("convert to pdf by calibre", zap.String("cmd", ebookConvert), zap.Strings("args", args))
+	c.logger.Infof("convert to pdf by calibre", zap.String("cmd", ebookConvert), zap.Strings("args", args))
 	_, err = command.ExecCommand(ebookConvert, args, c.timeout)
 	if err != nil {
-		c.logger.Error("convert to pdf by calibre", zap.String("cmd", ebookConvert), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("convert to pdf by calibre", zap.String("cmd", ebookConvert), zap.Strings("args", args), zap.Error(err))
 	}
 	return
 }
@@ -393,7 +394,7 @@ func (c *Converter) CountPDFPages(file string) (pages int, err error) {
 	defer func() {
 		if err != nil {
 			if pages, err = countPDFPagesV2(file); err != nil {
-				c.logger.Error("count pdf pages", zap.Error(err))
+				c.logger.Errorf("count pdf pages", zap.Error(err))
 				return
 			}
 		}
@@ -404,11 +405,11 @@ func (c *Converter) CountPDFPages(file string) (pages int, err error) {
 		file,
 		"pages",
 	}
-	c.logger.Info("count pdf pages", zap.String("cmd", mutool), zap.Strings("args", args))
+	c.logger.Infof("count pdf pages", zap.String("cmd", mutool), zap.Strings("args", args))
 	var out string
 	out, err = command.ExecCommand(mutool, args, c.timeout)
 	if err != nil {
-		c.logger.Error("count pdf pages", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("count pdf pages", zap.String("cmd", mutool), zap.Strings("args", args), zap.Error(err))
 		return
 	}
 
@@ -416,7 +417,7 @@ func (c *Converter) CountPDFPages(file string) (pages int, err error) {
 	length := len(lines)
 	for i := length - 1; i >= 0; i-- {
 		line := strings.TrimSpace(strings.ToLower(lines[i]))
-		c.logger.Debug("count pdf pages", zap.String("line", line))
+		c.logger.Debugf("count pdf pages", zap.String("line", line))
 		if strings.HasPrefix(line, "page") {
 			pages, _ = strconv.Atoi(strings.TrimSpace(strings.TrimLeft(strings.Split(line, "=")[0], "page")))
 			if pages > 0 {
@@ -491,13 +492,13 @@ func (c *Converter) CompressSVGBySVGO(svgFolder string) (err error) {
 		"-f",
 		svgFolder,
 	}
-	c.logger.Info("compress svg by svgo", zap.String("cmd", svgo), zap.Strings("args", args))
+	c.logger.Infof("compress svg by svgo", zap.String("cmd", svgo), zap.Strings("args", args))
 	var out string
 	out, err = command.ExecCommand(svgo, args, c.timeout*10)
 	if err != nil {
-		c.logger.Error("compress svg by svgo", zap.String("cmd", svgo), zap.Strings("args", args), zap.Error(err))
+		c.logger.Errorf("compress svg by svgo", zap.String("cmd", svgo), zap.Strings("args", args), zap.Error(err))
 	}
-	c.logger.Info("compress svg by svgo", zap.String("out", out))
+	c.logger.Infof("compress svg by svgo", zap.String("out", out))
 	return
 }
 
@@ -507,7 +508,7 @@ func (c *Converter) CompressSVGByGZIP(svgFile string) (dst string, err error) {
 	dst = strings.TrimSuffix(svgFile, filepath.Ext(svgFile)) + ".gzip.svg"
 	svgBytes, err = os.ReadFile(svgFile)
 	if err != nil {
-		c.logger.Error("read svg file", zap.String("svgFile", svgFile), zap.Error(err))
+		c.logger.Errorf("read svg file", zap.String("svgFile", svgFile), zap.Error(err))
 		return
 	}
 
@@ -529,7 +530,7 @@ func (c *Converter) CompressSVGByGZIP(svgFile string) (dst string, err error) {
 	gzw.Flush()
 	err = os.WriteFile(dst, buf.Bytes(), os.ModePerm)
 	if err != nil {
-		c.logger.Error("write svgz file", zap.String("svgzFile", dst), zap.Error(err))
+		c.logger.Errorf("write svgz file", zap.String("svgzFile", dst), zap.Error(err))
 	}
 	return
 }
@@ -546,12 +547,12 @@ func (c *Converter) makeWorkspace() (workspaceDir string) {
 
 func (c *Converter) Clean() (err error) {
 	if c.workspace != "" {
-		c.logger.Info("clean workspace", zap.String("workspace", c.workspace))
+		c.logger.Infof("clean workspace", zap.String("workspace", c.workspace))
 		err = os.RemoveAll(c.workspace)
 		if err != nil {
-			c.logger.Error("clean workspace", zap.String("workspace", c.workspace), zap.Error(err))
+			c.logger.Errorf("clean workspace", zap.String("workspace", c.workspace), zap.Error(err))
 		} else {
-			c.logger.Info("clean workspace success", zap.String("workspace", c.workspace))
+			c.logger.Infof("clean workspace success", zap.String("workspace", c.workspace))
 		}
 		c.workspace = ""
 	}

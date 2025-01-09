@@ -200,14 +200,6 @@ message Release {
 
 // 配置服务
 service ConfigAPI {
-
-  // 获取系统配置（针对所有用户，只读）
-  rpc GetSettings(google.protobuf.Empty) returns (Settings) {
-    option (google.api.http) = {
-      get : "/api/v1/settings"
-    };
-  }
-
   // UpdateConfig 更新配置
   rpc UpdateConfig(Configs) returns (google.protobuf.Empty) {
     option (google.api.http) = {
@@ -220,13 +212,6 @@ service ConfigAPI {
   rpc ListConfig(ListConfigRequest) returns (Configs) {
     option (google.api.http) = {
       get : '/api/v1/config/list',
-    };
-  }
-
-  // 获取系统配置
-  rpc GetStats(google.protobuf.Empty) returns (Stats) {
-    option (google.api.http) = {
-      get : "/api/v1/stats"
     };
   }
 

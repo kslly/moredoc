@@ -888,8 +888,6 @@ type ArticleAPIClient interface {
 	DeleteArticle(ctx context.Context, in *DeleteArticleRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 获取文章
 	GetArticle(ctx context.Context, in *GetArticleRequest, opts ...grpc.CallOption) (*Article, error)
-	// 文章列表
-	ListArticle(ctx context.Context, in *ListArticleRequest, opts ...grpc.CallOption) (*ListArticleReply, error)
 	// 批量更新文档分类
 	SetArticlesCategory(ctx context.Context, in *SetArticlesCategoryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 批量推荐
@@ -954,14 +952,6 @@ func (c *articleAPIClient) GetArticle(ctx context.Context, in *GetArticleRequest
 	return out, nil
 }
 
-func (c *articleAPIClient) ListArticle(ctx context.Context, in *ListArticleRequest, opts ...grpc.CallOption) (*ListArticleReply, error) {
-	out := new(ListArticleReply)
-	err := c.cc.Invoke(ctx, "/api.v1.ArticleAPI/ListArticle", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
 
 func (c *articleAPIClient) SetArticlesCategory(ctx context.Context, in *SetArticlesCategoryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
@@ -1054,8 +1044,6 @@ type ArticleAPIServer interface {
 	DeleteArticle(context.Context, *DeleteArticleRequest) (*emptypb.Empty, error)
 	// 获取文章
 	GetArticle(context.Context, *GetArticleRequest) (*Article, error)
-	// 文章列表
-	ListArticle(context.Context, *ListArticleRequest) (*ListArticleReply, error)
 	// 批量更新文档分类
 	SetArticlesCategory(context.Context, *SetArticlesCategoryRequest) (*emptypb.Empty, error)
 	// 批量推荐
@@ -1092,9 +1080,7 @@ func (*UnimplementedArticleAPIServer) DeleteArticle(ctx context.Context, req *De
 func (*UnimplementedArticleAPIServer) GetArticle(ctx context.Context, req *GetArticleRequest) (*Article, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetArticle not implemented")
 }
-func (*UnimplementedArticleAPIServer) ListArticle(ctx context.Context, req *ListArticleRequest) (*ListArticleReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListArticle not implemented")
-}
+
 func (*UnimplementedArticleAPIServer) SetArticlesCategory(ctx context.Context, req *SetArticlesCategoryRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetArticlesCategory not implemented")
 }
@@ -1195,24 +1181,6 @@ func _ArticleAPI_GetArticle_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ArticleAPIServer).GetArticle(ctx, req.(*GetArticleRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _ArticleAPI_ListArticle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListArticleRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ArticleAPIServer).ListArticle(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.ArticleAPI/ListArticle",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ArticleAPIServer).ListArticle(ctx, req.(*ListArticleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1398,10 +1366,6 @@ var _ArticleAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetArticle",
 			Handler:    _ArticleAPI_GetArticle_Handler,
-		},
-		{
-			MethodName: "ListArticle",
-			Handler:    _ArticleAPI_ListArticle_Handler,
 		},
 		{
 			MethodName: "SetArticlesCategory",

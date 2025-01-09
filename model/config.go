@@ -3,11 +3,11 @@ package model
 import (
 	"crypto/tls"
 	"errors"
+	"moredoc/pkg/cvt"
 	"moredoc/util"
 	"moredoc/util/captcha"
 	"moredoc/util/filetil"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -91,9 +91,9 @@ func (m *DBModel) UpdateConfigs(configs []*Config, updateFields ...string) (err 
 	}
 
 	for _, config := range configs {
-		m.logger.Debug("UpdateConfigs", zap.Any("config", config), zap.Any("updateFields", updateFields))
+		m.logger.Debugf("UpdateConfigs", zap.Any("config", config), zap.Any("updateFields", updateFields))
 		if err = sess.Select(updateFields).Updates(config).Error; err != nil {
-			m.logger.Error("UpdateConfigs", zap.Error(err))
+			m.logger.Errorf("UpdateConfigs", zap.Error(err))
 			return
 		}
 	}
@@ -114,7 +114,7 @@ func (m *DBModel) GetConfigByNameCategory(name string, category string, fields .
 
 	err = db.First(&config).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigByNameCategory", zap.Error(err))
+		m.logger.Errorf("GetConfigByNameCategory", zap.Error(err))
 		return
 	}
 	return
@@ -126,7 +126,7 @@ func (m *DBModel) GetConfigList(opt *OptionGetList) (configList []Config, err er
 	db = m.generateQueryIn(db, TableConfig, opt.QueryIn)
 	err = db.Order("sort asc").Find(&configList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigList", zap.Error(err))
+		m.logger.Errorf("GetConfigList", zap.Error(err))
 	}
 	return
 }
@@ -436,7 +436,7 @@ func (m *DBModel) GetConfigOfDisplay(name ...string) (config ConfigDisplay) {
 	}
 	err := db.Where("category = ?", ConfigCategoryDisplay).Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfDisplay", zap.Error(err))
+		m.logger.Errorf("GetConfigOfDisplay", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -455,7 +455,7 @@ func (m *DBModel) GetConfigOfRelease(name ...string) (release ConfigRelease) {
 	}
 	err := db.Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfRelease", zap.Error(err))
+		m.logger.Errorf("GetConfigOfRelease", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -473,7 +473,7 @@ func (m *DBModel) GetConfigOfSSR(name ...string) (ssr ConfigSSR) {
 	}
 	err := db.Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfSSR", zap.Error(err))
+		m.logger.Errorf("GetConfigOfSSR", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -500,7 +500,7 @@ func (m *DBModel) GetConfigOfFooter() (config ConfigFooter) {
 	var configs []Config
 	err := m.db.Where("category = ?", ConfigCategoryFooter).Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfFooter", zap.Error(err))
+		m.logger.Errorf("GetConfigOfFooter", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -520,7 +520,7 @@ func (m *DBModel) GetConfigOfDownload(name ...string) (config ConfigDownload) {
 	}
 	err := db.Where("category = ?", ConfigCategoryDownload).Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfDownload", zap.Error(err))
+		m.logger.Errorf("GetConfigOfDownload", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -535,7 +535,7 @@ func (m *DBModel) GetConfigOfCaptcha() (config ConfigCaptcha) {
 	var configs []Config
 	err := m.db.Where("category = ?", ConfigCategoryCaptcha).Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfCaptcha", zap.Error(err))
+		m.logger.Errorf("GetConfigOfCaptcha", zap.Error(err))
 	}
 	data := m.convertConfig2Map(configs)
 	bytes, _ := json.Marshal(data)
@@ -562,7 +562,7 @@ func (m *DBModel) GetConfigOfSystem(name ...string) (config ConfigSystem) {
 	}
 	err := db.Find(&confgis).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfSystem", zap.Error(err))
+		m.logger.Errorf("GetConfigOfSystem", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(confgis)
@@ -594,7 +594,7 @@ func (m *DBModel) GetConfigOfSecurity(name ...string) (config ConfigSecurity) {
 	}
 	err := db.Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfSecurity", zap.Error(err))
+		m.logger.Errorf("GetConfigOfSecurity", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -612,7 +612,7 @@ func (m *DBModel) GetConfigOfConverter() (config ConfigConverter) {
 	var configs []Config
 	err := m.db.Where("category = ?", ConfigCategoryConverter).Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfConverter", zap.Error(err))
+		m.logger.Errorf("GetConfigOfConverter", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -630,13 +630,13 @@ func (m *DBModel) GetConfigOfEmail(name ...string) (config ConfigEmail) {
 	}
 	err := db.Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfEmail", zap.Error(err))
+		m.logger.Errorf("GetConfigOfEmail", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
 	bytes, _ := json.Marshal(data)
 	json.Unmarshal(bytes, &config)
-	m.logger.Debug("GetConfigOfEmail", zap.Any("data", data), zap.Any("config", config))
+	m.logger.Debugf("GetConfigOfEmail", zap.Any("data", data), zap.Any("config", config))
 
 	return
 }
@@ -649,7 +649,7 @@ func (m *DBModel) GetConfigOfScore(name ...string) (config ConfigScore) {
 	}
 	err := db.Find(&configs).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetConfigOfScore", zap.Error(err))
+		m.logger.Errorf("GetConfigOfScore", zap.Error(err))
 	}
 
 	data := m.convertConfig2Map(configs)
@@ -661,7 +661,7 @@ func (m *DBModel) GetConfigOfScore(name ...string) (config ConfigScore) {
 
 func (m *DBModel) SendMail(subject, email string, body string) error {
 	cfg := m.GetConfigOfEmail()
-	m.logger.Debug("SendMail", zap.Any("cfg", cfg), zap.String("email", email), zap.String("subject", subject), zap.String("body", body))
+	m.logger.Debugf("SendMail", zap.Any("cfg", cfg), zap.String("email", email), zap.String("subject", subject), zap.String("body", body))
 	if !cfg.Enable {
 		return errors.New("邮件服务未启用")
 	}
@@ -714,14 +714,14 @@ func (m *DBModel) RefreshLatestRelease() (err error) {
 	case "auto":
 		release, err = util.GetLatestVersionFromGitee()
 		if err != nil {
-			m.logger.Error("GetLatestVersionFromGitee", zap.Error(err))
+			m.logger.Errorf("GetLatestVersionFromGitee", zap.Error(err))
 			release, err = util.GetLatestVersionFromGithub()
 		}
 	default:
 		return errors.New("您未指定新版本检测来源，无法获取最新版本更新！")
 	}
 	if err != nil {
-		m.logger.Error("GetLatestVersionFromGithub", zap.Error(err))
+		m.logger.Errorf("GetLatestVersionFromGithub", zap.Error(err))
 		return err
 	}
 
@@ -763,9 +763,9 @@ func (m *DBModel) convertConfig2Map(cfgs []Config) (data map[string]interface{})
 	for _, cfg := range cfgs {
 		switch strings.TrimSpace(cfg.InputType) {
 		case InputTypeNumber:
-			data[cfg.Name], _ = strconv.Atoi(cfg.Value)
+			data[cfg.Name] = cvt.ToInt(cfg.Value)
 		case InputTypeSwitch:
-			data[cfg.Name], _ = strconv.ParseBool(cfg.Value)
+			data[cfg.Name] = cvt.ToBoolean(cfg.Value)
 		case InputTypeSelectMulti:
 			arr := strings.Split(cfg.Value, ",")
 			if len(arr) == 1 && arr[0] == "" {
@@ -776,7 +776,7 @@ func (m *DBModel) convertConfig2Map(cfgs []Config) (data map[string]interface{})
 			data[cfg.Name] = cfg.Value
 		default:
 			// 这里只是做一个兼容处理。报错是为了提醒开发者，如果有新的输入类型，需要增加 InptType 的枚举常量，并在相应的表单进行处理
-			m.logger.Error("convertConfig2Map", zap.Error(errors.New("未知的输入类型，请在枚举常量InputType中进行定义")), zap.String("inputType", cfg.InputType), zap.String("name", cfg.Name), zap.String("value", cfg.Value))
+			m.logger.Errorf("convertConfig2Map", zap.Error(errors.New("未知的输入类型，请在枚举常量InputType中进行定义")), zap.String("inputType", cfg.InputType), zap.String("name", cfg.Name), zap.String("value", cfg.Value))
 			data[cfg.Name] = cfg.Value
 		}
 	}
@@ -924,14 +924,14 @@ func (m *DBModel) initConfig() (err error) {
 			cfg.Id = existConfig.Id
 			err = m.db.Omit("value").Updates(&cfg).Error
 			if err != nil {
-				m.logger.Error("initConfig", zap.Error(err))
+				m.logger.Errorf("initConfig", zap.Error(err))
 				return
 			}
 			continue
 		}
 		err = m.Create(&cfg)
 		if err != nil {
-			m.logger.Error("initConfig", zap.Error(err))
+			m.logger.Errorf("initConfig", zap.Error(err))
 			return
 		}
 	}

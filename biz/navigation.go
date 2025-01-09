@@ -2,11 +2,11 @@ package biz
 
 import (
 	"context"
-	"strings"
 
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
 	"go.uber.org/zap"
@@ -19,11 +19,11 @@ import (
 type NavigationAPIService struct {
 	pb.UnimplementedNavigationAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewNavigationAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *NavigationAPIService) {
-	return &NavigationAPIService{dbModel: dbModel, logger: logger.Named("NavigationAPIService")}
+func NewNavigationAPIService(dbModel *model.DBModel, logger logger.Logger) (service *NavigationAPIService) {
+	return &NavigationAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *NavigationAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -39,22 +39,22 @@ func (s *NavigationAPIService) CreateNavigation(ctx context.Context, req *pb.Nav
 	nav := &model.Navigation{}
 	err = util.CopyStruct(req, nav)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	s.logger.Debug("CreateNavigation", zap.Any("nav", nav), zap.Any("req", req))
+	s.logger.Debugf("CreateNavigation", zap.Any("nav", nav), zap.Any("req", req))
 
 	err = s.dbModel.CreateNavigation(nav)
 	if err != nil {
-		s.logger.Error("CreateNavigation", zap.Error(err))
+		s.logger.Errorf("CreateNavigation", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	res := &pb.Navigation{}
 	err = util.CopyStruct(nav, res)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -70,15 +70,15 @@ func (s *NavigationAPIService) UpdateNavigation(ctx context.Context, req *pb.Nav
 	nav := &model.Navigation{}
 	err = util.CopyStruct(req, nav)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	s.logger.Debug("UpdateNavigation", zap.Any("nav", nav), zap.Any("req", req))
+	s.logger.Debugf("UpdateNavigation", zap.Any("nav", nav), zap.Any("req", req))
 
 	err = s.dbModel.UpdateNavigation(nav)
 	if err != nil {
-		s.logger.Error("UpdateNavigation", zap.Error(err))
+		s.logger.Errorf("UpdateNavigation", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -93,7 +93,7 @@ func (s *NavigationAPIService) DeleteNavigation(ctx context.Context, req *pb.Del
 
 	err = s.dbModel.DeleteNavigation(req.Id)
 	if err != nil {
-		s.logger.Error("DeleteNavigation", zap.Error(err))
+		s.logger.Errorf("DeleteNavigation", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -104,55 +104,14 @@ func (s *NavigationAPIService) GetNavigation(ctx context.Context, req *pb.GetNav
 	nav := &model.Navigation{}
 	err := s.dbModel.GetByID(req.Id, nav)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		s.logger.Error("GetNavigation", zap.Error(err))
+		s.logger.Errorf("GetNavigation", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
 	res := &pb.Navigation{}
 	err = util.CopyStruct(nav, res)
 	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	return res, nil
-}
-
-func (s *NavigationAPIService) ListNavigation(ctx context.Context, req *pb.ListNavigationRequest) (*pb.ListNavigationReply, error) {
-	opt := &model.OptionGetList{
-		Page:         int(req.Page),
-		Size:         int(req.Size_),
-		WithCount:    true,
-		SelectFields: req.Field,
-	}
-
-	if req.Order != "" {
-		opt.Sort = strings.Split(req.Order, ",")
-	}
-
-	if req.Wd != "" {
-		opt.QueryLike = map[string][]interface{}{
-			"title":       {req.Wd},
-			"description": {req.Wd},
-			"href":        {req.Wd},
-		}
-	}
-
-	s.logger.Debug("ListNavigation", zap.Any("opt", opt), zap.Any("req", req))
-
-	navs, total, err := s.dbModel.GetNavigationList(opt)
-	if err != nil {
-		s.logger.Error("GetNavigationList", zap.Error(err))
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	res := &pb.ListNavigationReply{
-		Total: total,
-	}
-
-	err = util.CopyStruct(navs, &res.Navigation)
-	if err != nil {
-		s.logger.Error("CopyStruct", zap.Error(err))
+		s.logger.Errorf("CopyStruct", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 

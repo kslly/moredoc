@@ -6,6 +6,7 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
 	"go.uber.org/zap"
@@ -17,11 +18,11 @@ import (
 type FriendlinkAPIService struct {
 	pb.UnimplementedFriendlinkAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewFriendlinkAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *FriendlinkAPIService) {
-	return &FriendlinkAPIService{dbModel: dbModel, logger: logger.Named("FriendlinkAPIService")}
+func NewFriendlinkAPIService(dbModel *model.DBModel, logger logger.Logger) (service *FriendlinkAPIService) {
+	return &FriendlinkAPIService{dbModel: dbModel, logger: logger}
 }
 
 // checkPermission 检查用户权限
@@ -31,7 +32,7 @@ func (s *FriendlinkAPIService) checkPermission(ctx context.Context) (userClaims 
 
 // CreateFriendlink 创建友情链接，需要鉴权
 func (s *FriendlinkAPIService) CreateFriendlink(ctx context.Context, req *pb.Friendlink) (*pb.Friendlink, error) {
-	s.logger.Debug("CreateFriendlink", zap.Any("req", req))
+	s.logger.Debugf("CreateFriendlink", zap.Any("req", req))
 	_, err := s.checkPermission(ctx)
 	if err != nil {
 		return nil, err
@@ -100,46 +101,7 @@ func (s *FriendlinkAPIService) GetFriendlink(ctx context.Context, req *pb.GetFri
 	pbFriendlink := &pb.Friendlink{}
 	util.CopyStruct(friendlink, pbFriendlink)
 
-	s.logger.Debug("GetFriendlink", zap.Any("pbFriendlink", pbFriendlink), zap.Any("friendlink", friendlink))
+	s.logger.Debugf("GetFriendlink", zap.Any("pbFriendlink", pbFriendlink), zap.Any("friendlink", friendlink))
 
 	return pbFriendlink, nil
-}
-
-func (s *FriendlinkAPIService) ListFriendlink(ctx context.Context, req *pb.ListFriendlinkRequest) (*pb.ListFriendlinkReply, error) {
-	opt := &model.OptionGetList{
-		WithCount:    true,
-		Page:         int(req.Page),
-		Size:         int(req.Size_),
-		SelectFields: req.Field,
-	}
-
-	_, err := s.checkPermission(ctx)
-	if err == nil {
-		// 管理员可使用like查询
-		if req.Wd != "" {
-			wd := "%" + req.Wd + "%"
-			opt.QueryLike = map[string][]interface{}{
-				"title":       {wd},
-				"description": {wd},
-			}
-		}
-		// 管理员可查询指定状态的友链
-		if len(req.Enable) > 0 {
-			opt.QueryIn = map[string][]interface{}{"enable": util.Slice2Interface(req.Enable)}
-		}
-	} else {
-		// 非管理员可查询的字段
-		opt.SelectFields = []string{"id", "title", "link"}
-		opt.QueryIn = map[string][]interface{}{"enable": {true}}
-	}
-
-	friendlink, total, err := s.dbModel.GetFriendlinkList(opt)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, err.Error())
-	}
-
-	var pbFriendlink []*pb.Friendlink
-	util.CopyStruct(friendlink, &pbFriendlink)
-
-	return &pb.ListFriendlinkReply{Friendlink: pbFriendlink, Total: total}, nil
 }

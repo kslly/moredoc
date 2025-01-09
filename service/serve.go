@@ -10,6 +10,7 @@ import (
 	"moredoc/middleware/auth"
 	"moredoc/middleware/jsonpb"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 	"moredoc/service/serve"
 
 	"github.com/gin-contrib/cors"
@@ -27,7 +28,7 @@ import (
 )
 
 // Run start server
-func Run(cfg *conf.Config, logger *zap.Logger) {
+func Run(cfg *conf.Config, logger logger.Logger) {
 	size := 100 * 1024 * 1024 // 100MB
 	dialOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -53,7 +54,7 @@ func Run(cfg *conf.Config, logger *zap.Logger) {
 
 	dbModel, err := model.NewDBModel(&cfg.Database, logger)
 	if err != nil {
-		logger.Fatal("NewDBModel", zap.Error(err))
+		logger.Fatalf("NewDBModel", zap.Error(err))
 		return
 	}
 	defer dbModel.CloseDB()
@@ -63,7 +64,7 @@ func Run(cfg *conf.Config, logger *zap.Logger) {
 	dbModel.RunTasks()
 
 	if yes, sqlMode := dbModel.IsSupportGroupBy(); !yes {
-		logger.Warn("IsSupportGroupBy", zap.String("告警提示", "您的数据库不支持MySQL的group by 查询"), zap.String("sql_mode", sqlMode))
+		logger.Warnf("IsSupportGroupBy", zap.String("告警提示", "您的数据库不支持MySQL的group by 查询"), zap.String("sql_mode", sqlMode))
 	}
 
 	if cfg.Level != "debug" {
@@ -88,7 +89,7 @@ func Run(cfg *conf.Config, logger *zap.Logger) {
 	endpoint := fmt.Sprintf("localhost:%v", cfg.Port)
 	err = serve.RegisterGRPCService(dbModel, logger, endpoint, auth, grpcServer, gwmux, dialOpts...)
 	if err != nil {
-		logger.Fatal("registerAPIService", zap.Error(err))
+		logger.Fatalf("registerAPIService", zap.Error(err))
 		return
 	}
 
@@ -102,10 +103,10 @@ func Run(cfg *conf.Config, logger *zap.Logger) {
 	app.NoRoute(wrapH(grpcHandlerFunc(grpcServer, gwmux))) // grpcServer and grpcGatewayServer
 
 	addr := fmt.Sprintf(":%v", cfg.Port)
-	logger.Info("server start", zap.Int("port", cfg.Port))
+	logger.Infof("server start", zap.Int("port", cfg.Port))
 	err = app.Run(addr)
 	if err != nil {
-		logger.Fatal(err.Error())
+		logger.Fatalf(err.Error())
 	}
 }
 

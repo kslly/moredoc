@@ -1777,14 +1777,10 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ConfigAPIClient interface {
-	// 获取系统配置（针对所有用户，只读）
-	GetSettings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Settings, error)
 	// UpdateConfig 更新配置
 	UpdateConfig(ctx context.Context, in *Configs, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// ListConfig 查询配置项
 	ListConfig(ctx context.Context, in *ListConfigRequest, opts ...grpc.CallOption) (*Configs, error)
-	// 获取系统配置
-	GetStats(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Stats, error)
 	// 获取系统环境依赖检测
 	GetEnvs(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Envs, error)
 	// 更新站点地图
@@ -1811,15 +1807,6 @@ func NewConfigAPIClient(cc *grpc.ClientConn) ConfigAPIClient {
 	return &configAPIClient{cc}
 }
 
-func (c *configAPIClient) GetSettings(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Settings, error) {
-	out := new(Settings)
-	err := c.cc.Invoke(ctx, "/api.v1.ConfigAPI/GetSettings", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *configAPIClient) UpdateConfig(ctx context.Context, in *Configs, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, "/api.v1.ConfigAPI/UpdateConfig", in, out, opts...)
@@ -1832,15 +1819,6 @@ func (c *configAPIClient) UpdateConfig(ctx context.Context, in *Configs, opts ..
 func (c *configAPIClient) ListConfig(ctx context.Context, in *ListConfigRequest, opts ...grpc.CallOption) (*Configs, error) {
 	out := new(Configs)
 	err := c.cc.Invoke(ctx, "/api.v1.ConfigAPI/ListConfig", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *configAPIClient) GetStats(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*Stats, error) {
-	out := new(Stats)
-	err := c.cc.Invoke(ctx, "/api.v1.ConfigAPI/GetStats", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1921,14 +1899,10 @@ func (c *configAPIClient) SetReleaseSource(ctx context.Context, in *Release, opt
 
 // ConfigAPIServer is the server API for ConfigAPI service.
 type ConfigAPIServer interface {
-	// 获取系统配置（针对所有用户，只读）
-	GetSettings(context.Context, *emptypb.Empty) (*Settings, error)
 	// UpdateConfig 更新配置
 	UpdateConfig(context.Context, *Configs) (*emptypb.Empty, error)
 	// ListConfig 查询配置项
 	ListConfig(context.Context, *ListConfigRequest) (*Configs, error)
-	// 获取系统配置
-	GetStats(context.Context, *emptypb.Empty) (*Stats, error)
 	// 获取系统环境依赖检测
 	GetEnvs(context.Context, *emptypb.Empty) (*Envs, error)
 	// 更新站点地图
@@ -1951,17 +1925,11 @@ type ConfigAPIServer interface {
 type UnimplementedConfigAPIServer struct {
 }
 
-func (*UnimplementedConfigAPIServer) GetSettings(ctx context.Context, req *emptypb.Empty) (*Settings, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSettings not implemented")
-}
 func (*UnimplementedConfigAPIServer) UpdateConfig(ctx context.Context, req *Configs) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateConfig not implemented")
 }
 func (*UnimplementedConfigAPIServer) ListConfig(ctx context.Context, req *ListConfigRequest) (*Configs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListConfig not implemented")
-}
-func (*UnimplementedConfigAPIServer) GetStats(ctx context.Context, req *emptypb.Empty) (*Stats, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetStats not implemented")
 }
 func (*UnimplementedConfigAPIServer) GetEnvs(ctx context.Context, req *emptypb.Empty) (*Envs, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetEnvs not implemented")
@@ -1990,24 +1958,6 @@ func (*UnimplementedConfigAPIServer) SetReleaseSource(ctx context.Context, req *
 
 func RegisterConfigAPIServer(s *grpc.Server, srv ConfigAPIServer) {
 	s.RegisterService(&_ConfigAPI_serviceDesc, srv)
-}
-
-func _ConfigAPI_GetSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAPIServer).GetSettings(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.ConfigAPI/GetSettings",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAPIServer).GetSettings(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _ConfigAPI_UpdateConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -2046,23 +1996,6 @@ func _ConfigAPI_ListConfig_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ConfigAPI_GetStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ConfigAPIServer).GetStats(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.ConfigAPI/GetStats",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ConfigAPIServer).GetStats(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
 
 func _ConfigAPI_GetEnvs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
@@ -2213,20 +2146,12 @@ var _ConfigAPI_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ConfigAPIServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetSettings",
-			Handler:    _ConfigAPI_GetSettings_Handler,
-		},
-		{
 			MethodName: "UpdateConfig",
 			Handler:    _ConfigAPI_UpdateConfig_Handler,
 		},
 		{
 			MethodName: "ListConfig",
 			Handler:    _ConfigAPI_ListConfig_Handler,
-		},
-		{
-			MethodName: "GetStats",
-			Handler:    _ConfigAPI_GetStats_Handler,
 		},
 		{
 			MethodName: "GetEnvs",

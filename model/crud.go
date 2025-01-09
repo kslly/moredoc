@@ -77,7 +77,7 @@ func (m *DBModel) Count(modelIndex interface{}) int64 {
 		err   = db.Count(&count).Error
 	)
 	if err != nil {
-		m.logger.Error("CountFriendlink", zap.Error(err))
+		m.logger.Errorf("CountFriendlink", zap.Error(err))
 	}
 	return count
 }
@@ -123,7 +123,7 @@ func (m *DBModel) GetDocumentList(opt *OptionGetList) (documentList []Document, 
 		db = db.Where("d.deleted_at IS NULL")
 	}
 
-	m.logger.Debug("GetDocumentList", zap.Any("opt", opt))
+	m.logger.Debugf("GetDocumentList", zap.Any("opt", opt))
 
 	db = m.generateQueryIn(db, tableDocument, opt.QueryIn)
 	db = m.generateQueryLike(db, tableDocument, opt.QueryLike)
@@ -156,7 +156,7 @@ func (m *DBModel) GetDocumentList(opt *OptionGetList) (documentList []Document, 
 	if opt.WithCount {
 		err = db.Group("d.id").Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetDocumentList", zap.Error(err))
+			m.logger.Errorf("GetDocumentList", zap.Error(err))
 			return
 		}
 	}
@@ -177,7 +177,7 @@ func (m *DBModel) GetDocumentList(opt *OptionGetList) (documentList []Document, 
 	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
 	err = db.Group("d.id").Find(&documentList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDocumentList", zap.Error(err))
+		m.logger.Errorf("GetDocumentList", zap.Error(err))
 	}
 	return
 }
@@ -186,7 +186,7 @@ func (m *DBModel) GetDocumentList(opt *OptionGetList) (documentList []Document, 
 func (m *DBModel) GetAdvertisementList(opt *OptionGetList) (advertisementList []Advertisement, total int64, err error) {
 	db, total, err := m.queryCond(TableAdvertisement, &Advertisement{}, opt, true)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -195,7 +195,7 @@ func (m *DBModel) GetAdvertisementList(opt *OptionGetList) (advertisementList []
 
 	err = db.Find(&advertisementList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetAdvertisementList", zap.Error(err))
+		m.logger.Errorf("GetAdvertisementList", zap.Error(err))
 		return nil, total, err
 	}
 	return advertisementList, total, err
@@ -215,12 +215,12 @@ func (m *DBModel) queryCond(table string, value interface{}, opt *OptionGetList,
 	if opt.WithCount {
 		err := db.Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetAttachmentList", zap.Error(err))
+			m.logger.Errorf("GetAttachmentList", zap.Error(err))
 			return nil, total, err
 		}
 	}
 
-	opt.SelectFields = m.FilterValidFields(TableAttachment, opt.SelectFields...)
+	opt.SelectFields = m.FilterValidFields(table, opt.SelectFields...)
 	if len(opt.SelectFields) > 0 {
 		db = db.Select(opt.SelectFields)
 	}
@@ -231,7 +231,7 @@ func (m *DBModel) queryCond(table string, value interface{}, opt *OptionGetList,
 func (m *DBModel) GetAttachmentList(opt *OptionGetList) (attachmentList []Attachment, total int64, err error) {
 	db, total, err := m.queryCond(TableAttachment, &Attachment{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -246,7 +246,7 @@ func (m *DBModel) GetAttachmentList(opt *OptionGetList) (attachmentList []Attach
 
 	err = db.Find(&attachmentList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetAttachmentList", zap.Error(err))
+		m.logger.Errorf("GetAttachmentList", zap.Error(err))
 	}
 	return
 }
@@ -255,7 +255,7 @@ func (m *DBModel) GetAttachmentList(opt *OptionGetList) (attachmentList []Attach
 func (m *DBModel) GetBannerList(opt *OptionGetList) (bannerList []Banner, total int64, err error) {
 	db, total, err := m.queryCond(TableBanner, &Banner{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -263,7 +263,7 @@ func (m *DBModel) GetBannerList(opt *OptionGetList) (bannerList []Banner, total 
 
 	err = db.Order("enable desc, sort desc").Find(&bannerList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetBannerList", zap.Error(err))
+		m.logger.Errorf("GetBannerList", zap.Error(err))
 	}
 	return
 }
@@ -272,7 +272,7 @@ func (m *DBModel) GetBannerList(opt *OptionGetList) (bannerList []Banner, total 
 func (m *DBModel) GetCommentList(opt *OptionGetList) (commentList []Comment, total int64, err error) {
 	db, total, err := m.queryCond(TableComment, &Comment{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -282,7 +282,7 @@ func (m *DBModel) GetCommentList(opt *OptionGetList) (commentList []Comment, tot
 
 	err = db.Find(&commentList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetCommentList", zap.Error(err))
+		m.logger.Errorf("GetCommentList", zap.Error(err))
 	}
 	return
 }
@@ -291,7 +291,7 @@ func (m *DBModel) GetCommentList(opt *OptionGetList) (commentList []Comment, tot
 func (m *DBModel) GetDocumentCategoryList(opt *OptionGetList) (documentCategoryList []DocumentCategory, total int64, err error) {
 	db, total, err := m.queryCond(TableDocumentCategory, &DocumentCategory{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -299,7 +299,7 @@ func (m *DBModel) GetDocumentCategoryList(opt *OptionGetList) (documentCategoryL
 
 	err = db.Find(&documentCategoryList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDocumentCategoryList", zap.Error(err))
+		m.logger.Errorf("GetDocumentCategoryList", zap.Error(err))
 	}
 	return
 }
@@ -308,7 +308,7 @@ func (m *DBModel) GetDocumentCategoryList(opt *OptionGetList) (documentCategoryL
 func (m *DBModel) GetDynamicList(opt *OptionGetList) (dynamicList []Dynamic, total int64, err error) {
 	db, total, err := m.queryCond(TableDynamic, &Dynamic{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -316,7 +316,7 @@ func (m *DBModel) GetDynamicList(opt *OptionGetList) (dynamicList []Dynamic, tot
 	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
 	err = db.Find(&dynamicList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDynamicList", zap.Error(err))
+		m.logger.Errorf("GetDynamicList", zap.Error(err))
 	}
 	return
 }
@@ -325,7 +325,7 @@ func (m *DBModel) GetDynamicList(opt *OptionGetList) (dynamicList []Dynamic, tot
 func (m *DBModel) GetLanguageList(opt *OptionGetList) (languageList []Language, total int64, err error) {
 	db, total, err := m.queryCond(TableLanguage, &Language{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -337,7 +337,7 @@ func (m *DBModel) GetLanguageList(opt *OptionGetList) (languageList []Language, 
 
 	err = db.Find(&languageList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetLanguageList", zap.Error(err))
+		m.logger.Errorf("GetLanguageList", zap.Error(err))
 	}
 	return
 }
@@ -346,7 +346,7 @@ func (m *DBModel) GetLanguageList(opt *OptionGetList) (languageList []Language, 
 func (m *DBModel) GetNavigationList(opt *OptionGetList) (navigationList []Navigation, total int64, err error) {
 	db, total, err := m.queryCond(TableNavigation, &Navigation{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -359,7 +359,7 @@ func (m *DBModel) GetNavigationList(opt *OptionGetList) (navigationList []Naviga
 
 	err = db.Find(&navigationList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetNavigationList", zap.Error(err))
+		m.logger.Errorf("GetNavigationList", zap.Error(err))
 	}
 	return
 }
@@ -368,7 +368,7 @@ func (m *DBModel) GetNavigationList(opt *OptionGetList) (navigationList []Naviga
 func (m *DBModel) GetPunishmentList(opt *OptionGetList) (punishmentList []Punishment, total int64, err error) {
 	db, total, err := m.queryCond(TablePunishment, &Punishment{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -378,7 +378,7 @@ func (m *DBModel) GetPunishmentList(opt *OptionGetList) (punishmentList []Punish
 
 	err = db.Find(&punishmentList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetPunishmentList", zap.Error(err))
+		m.logger.Errorf("GetPunishmentList", zap.Error(err))
 	}
 	return
 }
@@ -387,7 +387,7 @@ func (m *DBModel) GetPunishmentList(opt *OptionGetList) (punishmentList []Punish
 func (m *DBModel) GetReportList(opt *OptionGetList) (reportList []*v1.Report, total int64, err error) {
 	db, total, err := m.queryCond(TableReport, &Report{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -397,7 +397,7 @@ func (m *DBModel) GetReportList(opt *OptionGetList) (reportList []*v1.Report, to
 
 	err = db.Find(&reportList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetReportList", zap.Error(err))
+		m.logger.Errorf("GetReportList", zap.Error(err))
 	}
 	return
 }
@@ -406,7 +406,7 @@ func (m *DBModel) GetReportList(opt *OptionGetList) (reportList []*v1.Report, to
 func (m *DBModel) GetSearchRecordList(opt *OptionGetList) (searchRecordList []SearchRecord, total int64, err error) {
 	db, total, err := m.queryCond(TableSearchRecord, &SearchRecord{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -416,7 +416,7 @@ func (m *DBModel) GetSearchRecordList(opt *OptionGetList) (searchRecordList []Se
 
 	err = db.Find(&searchRecordList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetSearchRecordList", zap.Error(err))
+		m.logger.Errorf("GetSearchRecordList", zap.Error(err))
 	}
 	return
 }
@@ -460,7 +460,7 @@ func (m *DBModel) GetUserList(opt *OptionGetList) (userList []User, total int64,
 	if opt.WithCount {
 		err = db.Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetUserList", zap.Error(err))
+			m.logger.Errorf("GetUserList", zap.Error(err))
 			return
 		}
 	}
@@ -488,7 +488,7 @@ func (m *DBModel) GetUserList(opt *OptionGetList) (userList []User, total int64,
 
 	err = db.Find(&userList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetUserList", zap.Error(err))
+		m.logger.Errorf("GetUserList", zap.Error(err))
 	}
 	return
 }
@@ -497,14 +497,14 @@ func (m *DBModel) GetUserList(opt *OptionGetList) (userList []User, total int64,
 func (m *DBModel) GetFriendlinkList(opt *OptionGetList) (friendlinkList []Friendlink, total int64, err error) {
 	db, total, err := m.queryCond(TableFriendlink, &Friendlink{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 	db = db.Offset((opt.Page - 1) * opt.Size).Limit(opt.Size)
 
 	err = db.Order("enable desc,sort desc").Find(&friendlinkList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetFriendlinkList", zap.Error(err))
+		m.logger.Errorf("GetFriendlinkList", zap.Error(err))
 	}
 	return
 }

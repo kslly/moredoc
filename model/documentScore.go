@@ -37,7 +37,7 @@ func (m *DBModel) CreateDocumentScore(documentScore *DocumentScore) (err error) 
 	// 创建评分记录
 	err = tx.Create(documentScore).Error
 	if err != nil {
-		m.logger.Error("CreateDocumentScore", zap.Error(err))
+		m.logger.Errorf("CreateDocumentScore", zap.Error(err))
 		return
 	}
 
@@ -50,7 +50,7 @@ func (m *DBModel) CreateDocumentScore(documentScore *DocumentScore) (err error) 
 		},
 	).Error
 	if err != nil {
-		m.logger.Error("CreateDocumentScore", zap.Error(err))
+		m.logger.Errorf("CreateDocumentScore", zap.Error(err))
 		return
 	}
 	return

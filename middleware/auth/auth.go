@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"moredoc/conf"
 	"strings"
 	"time"
@@ -121,4 +122,15 @@ func (p *Auth) CheckJWTToken(token string) (*UserClaims, error) {
 		}
 	}
 	return nil, err
+}
+
+func (p *Auth) CheckAuthorization(authorization string) (*UserClaims, error) {
+	bearer := strings.Split(authorization, " ")
+
+	if authorization == "" || len(bearer) != 2 {
+		return nil, fmt.Errorf("authorization错误:%s", authorization)
+	}
+
+	token := bearer[1]
+	return p.CheckJWTToken(token)
 }

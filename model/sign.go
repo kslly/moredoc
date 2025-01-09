@@ -45,7 +45,7 @@ func (m *DBModel) CreateSign(userId int64, ip string) (sign *Sign, err error) {
 
 	err = tx.Create(sign).Error
 	if err != nil {
-		m.logger.Error("CreateSign Create", zap.Error(err))
+		m.logger.Errorf("CreateSign Create", zap.Error(err))
 		return
 	}
 
@@ -54,7 +54,7 @@ func (m *DBModel) CreateSign(userId int64, ip string) (sign *Sign, err error) {
 		// 1. 更新用户积分
 		err = tx.Model(&User{}).Where("id=?", userId).Update("credit_count", gorm.Expr("credit_count + ?", cfg.SignIn)).Error
 		if err != nil {
-			m.logger.Error("CreateSign Update", zap.Error(err))
+			m.logger.Errorf("CreateSign Update", zap.Error(err))
 			return
 		}
 		content = fmt.Sprintf("签到成功，获得 %d %s奖励", cfg.SignIn, cfg.CreditName)
@@ -67,7 +67,7 @@ func (m *DBModel) CreateSign(userId int64, ip string) (sign *Sign, err error) {
 	}
 	err = tx.Create(&dynamic).Error
 	if err != nil {
-		m.logger.Error("CreateSign Create Dynamic", zap.Error(err))
+		m.logger.Errorf("CreateSign Create Dynamic", zap.Error(err))
 		return
 	}
 	return
@@ -78,7 +78,7 @@ func (m *DBModel) GetSignedToday(userId int64) (sign Sign) {
 	signAt, _ := strconv.Atoi(time.Now().Format("20060102"))
 	err := m.db.Where("user_id=? and sign_at=?", userId, signAt).First(&sign).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetSignedToday", zap.Error(err))
+		m.logger.Errorf("GetSignedToday", zap.Error(err))
 	}
 	return
 }

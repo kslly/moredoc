@@ -32,7 +32,7 @@ func (m *DBModel) DeleteBanner(ids []int64) (err error) {
 
 	err = sess.Where("id in (?)", ids).Delete(&Banner{}).Error
 	if err != nil {
-		m.logger.Error("DeleteBanner", zap.Error(err))
+		m.logger.Errorf("DeleteBanner", zap.Error(err))
 		return
 	}
 

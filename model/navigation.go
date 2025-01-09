@@ -73,7 +73,7 @@ func (m *DBModel) initNavigation() {
 		if exist.Id == 0 {
 			err := m.Create(&nav)
 			if err != nil {
-				m.logger.Error("initNavigation", zap.Error(err))
+				m.logger.Errorf("initNavigation", zap.Error(err))
 			}
 		}
 	}

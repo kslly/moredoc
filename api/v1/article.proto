@@ -129,13 +129,6 @@ service ArticleAPI {
     };
   }
 
-  // 文章列表
-  rpc ListArticle(ListArticleRequest) returns (ListArticleReply) {
-    option (google.api.http) = {
-      get : '/api/v1/article/list',
-    };
-  }
-
   // 批量更新文档分类
   rpc SetArticlesCategory(SetArticlesCategoryRequest)
       returns (google.protobuf.Empty) {

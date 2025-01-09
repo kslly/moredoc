@@ -22,7 +22,7 @@ func (m *DBModel) GetArticleCategories(articleId ...int64) (categories []Article
 
 	err = m.db.Where("article_id in ?", articleId).Find(&categories).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetArticleCategories", zap.Error(err))
+		m.logger.Errorf("GetArticleCategories", zap.Error(err))
 	}
 	return
 }

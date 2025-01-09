@@ -1,7 +1,7 @@
 package model
 
 import (
-	"moredoc/util"
+	"moredoc/pkg/cvt"
 	"strings"
 	"time"
 
@@ -39,7 +39,7 @@ func (m *DBModel) GetRelatedDocuments(documentId int64) (docs []Document, err er
 
 	err = m.db.Where("document_id = ?", documentId).First(&docRelate).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetRelatedDocuments", zap.Error(err))
+		m.logger.Errorf("GetRelatedDocuments", zap.Error(err))
 		return
 	}
 
@@ -61,7 +61,7 @@ func (m *DBModel) GetRelatedDocuments(documentId int64) (docs []Document, err er
 			opt.QueryLike["description"] = keywords
 		}
 	} else {
-		opt.QueryIn["id"] = util.Slice2Interface(docIds)
+		opt.QueryIn["id"] = cvt.ToArray(docIds)
 	}
 	docs, _, _ = m.GetDocumentList(opt)
 	if !isExpired {

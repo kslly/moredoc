@@ -6,6 +6,8 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
 	"go.uber.org/zap"
@@ -17,11 +19,11 @@ import (
 type LanguageAPIService struct {
 	pb.UnimplementedLanguageAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewLanguageAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *LanguageAPIService) {
-	return &LanguageAPIService{dbModel: dbModel, logger: logger.Named("LanguageAPIService")}
+func NewLanguageAPIService(dbModel *model.DBModel, logger logger.Logger) (service *LanguageAPIService) {
+	return &LanguageAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *LanguageAPIService) checkPermission(ctx context.Context) (userClaims *auth.UserClaims, err error) {
@@ -40,7 +42,7 @@ func (s *LanguageAPIService) UpdateLanguageStatus(ctx context.Context, req *pb.U
 
 	err = s.dbModel.UpdateLanguageStatus(req.Id, req.Enable)
 	if err != nil {
-		s.logger.Error("UpdateLanguageStatus", zap.Error(err))
+		s.logger.Errorf("UpdateLanguageStatus", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -66,7 +68,7 @@ func (s *LanguageAPIService) UpdateLanguage(ctx context.Context, req *pb.Languag
 	}
 	err = s.dbModel.UpdateLanguage(lang, fields...)
 	if err != nil {
-		s.logger.Error("UpdateLanguage", zap.Error(err))
+		s.logger.Errorf("UpdateLanguage", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -93,7 +95,7 @@ func (s *LanguageAPIService) ListLanguage(ctx context.Context, req *pb.ListLangu
 
 	if userClaims != nil && userClaims.HaveAccess {
 		if len(req.Enable) > 0 {
-			opt.QueryIn["enable"] = util.Slice2Interface(req.Enable)
+			opt.QueryIn["enable"] = cvt.ToArray(req.Enable)
 		}
 		if req.Wd != "" {
 			opt.QueryLike = map[string][]interface{}{
@@ -107,7 +109,7 @@ func (s *LanguageAPIService) ListLanguage(ctx context.Context, req *pb.ListLangu
 
 	langs, total, err := s.dbModel.GetLanguageList(opt)
 	if err != nil {
-		s.logger.Error("ListLanguage", zap.Error(err))
+		s.logger.Errorf("ListLanguage", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -127,7 +129,7 @@ func (s *LanguageAPIService) CreateLanguage(ctx context.Context, req *pb.Languag
 	util.CopyStruct(req, lang)
 	err = s.dbModel.CreateLanguage(lang)
 	if err != nil {
-		s.logger.Error("CreateLanguage", zap.Error(err))
+		s.logger.Errorf("CreateLanguage", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 
@@ -146,7 +148,7 @@ func (s *LanguageAPIService) DeleteLanguage(ctx context.Context, req *pb.DeleteL
 
 	err = s.dbModel.DeleteLanguage(req.Id)
 	if err != nil {
-		s.logger.Error("DeleteLanguage", zap.Error(err))
+		s.logger.Errorf("DeleteLanguage", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, err.Error())
 	}
 

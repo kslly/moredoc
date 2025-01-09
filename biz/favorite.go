@@ -6,9 +6,9 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -17,11 +17,11 @@ import (
 type FavoriteAPIService struct {
 	pb.UnimplementedFavoriteAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewFavoriteAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *FavoriteAPIService) {
-	return &FavoriteAPIService{dbModel: dbModel, logger: logger.Named("FavoriteAPIService")}
+func NewFavoriteAPIService(dbModel *model.DBModel, logger logger.Logger) (service *FavoriteAPIService) {
+	return &FavoriteAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *FavoriteAPIService) checkLogin(ctx context.Context) (*auth.UserClaims, error) {

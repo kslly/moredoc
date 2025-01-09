@@ -489,8 +489,6 @@ type CategoryAPIClient interface {
 	DeleteCategory(ctx context.Context, in *DeleteCategoryRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// 获取分类
 	GetCategory(ctx context.Context, in *GetCategoryRequest, opts ...grpc.CallOption) (*Category, error)
-	// 分类列表
-	ListCategory(ctx context.Context, in *ListCategoryRequest, opts ...grpc.CallOption) (*ListCategoryReply, error)
 }
 
 type categoryAPIClient struct {
@@ -537,14 +535,7 @@ func (c *categoryAPIClient) GetCategory(ctx context.Context, in *GetCategoryRequ
 	return out, nil
 }
 
-func (c *categoryAPIClient) ListCategory(ctx context.Context, in *ListCategoryRequest, opts ...grpc.CallOption) (*ListCategoryReply, error) {
-	out := new(ListCategoryReply)
-	err := c.cc.Invoke(ctx, "/api.v1.CategoryAPI/ListCategory", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
+
 
 // CategoryAPIServer is the server API for CategoryAPI service.
 type CategoryAPIServer interface {
@@ -556,8 +547,6 @@ type CategoryAPIServer interface {
 	DeleteCategory(context.Context, *DeleteCategoryRequest) (*emptypb.Empty, error)
 	// 获取分类
 	GetCategory(context.Context, *GetCategoryRequest) (*Category, error)
-	// 分类列表
-	ListCategory(context.Context, *ListCategoryRequest) (*ListCategoryReply, error)
 }
 
 // UnimplementedCategoryAPIServer can be embedded to have forward compatible implementations.
@@ -576,9 +565,7 @@ func (*UnimplementedCategoryAPIServer) DeleteCategory(ctx context.Context, req *
 func (*UnimplementedCategoryAPIServer) GetCategory(ctx context.Context, req *GetCategoryRequest) (*Category, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCategory not implemented")
 }
-func (*UnimplementedCategoryAPIServer) ListCategory(ctx context.Context, req *ListCategoryRequest) (*ListCategoryReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListCategory not implemented")
-}
+
 
 func RegisterCategoryAPIServer(s *grpc.Server, srv CategoryAPIServer) {
 	s.RegisterService(&_CategoryAPI_serviceDesc, srv)
@@ -656,23 +643,6 @@ func _CategoryAPI_GetCategory_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CategoryAPI_ListCategory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListCategoryRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CategoryAPIServer).ListCategory(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/api.v1.CategoryAPI/ListCategory",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CategoryAPIServer).ListCategory(ctx, req.(*ListCategoryRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
 
 var _CategoryAPI_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "api.v1.CategoryAPI",
@@ -693,10 +663,6 @@ var _CategoryAPI_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCategory",
 			Handler:    _CategoryAPI_GetCategory_Handler,
-		},
-		{
-			MethodName: "ListCategory",
-			Handler:    _CategoryAPI_ListCategory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

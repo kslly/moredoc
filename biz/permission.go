@@ -6,9 +6,10 @@ import (
 	pb "moredoc/api/v1"
 	"moredoc/middleware/auth"
 	"moredoc/model"
+	"moredoc/pkg/cvt"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 
-	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -17,11 +18,11 @@ import (
 type PermissionAPIService struct {
 	pb.UnimplementedPermissionAPIServer
 	dbModel *model.DBModel
-	logger  *zap.Logger
+	logger  logger.Logger
 }
 
-func NewPermissionAPIService(dbModel *model.DBModel, logger *zap.Logger) (service *PermissionAPIService) {
-	return &PermissionAPIService{dbModel: dbModel, logger: logger.Named("PermissionAPIService")}
+func NewPermissionAPIService(dbModel *model.DBModel, logger logger.Logger) (service *PermissionAPIService) {
+	return &PermissionAPIService{dbModel: dbModel, logger: logger}
 }
 
 func (s *PermissionAPIService) checkPermission(ctx context.Context) (*auth.UserClaims, error) {
@@ -91,7 +92,7 @@ func (s *PermissionAPIService) ListPermission(ctx context.Context, req *pb.ListP
 	}
 
 	if len(req.Method) > 0 {
-		opt.QueryIn["method"] = util.Slice2Interface(req.Method)
+		opt.QueryIn["method"] = cvt.ToArray(req.Method)
 	}
 
 	permissions, total, err := s.dbModel.GetPermissionList(opt)

@@ -40,14 +40,14 @@ func (m *DBModel) CreateGroup(group *Group) (err error) {
 	if group.IsDefault {
 		err = sess.Model(&Group{}).Where("is_default > ?", 0).Updates(map[string]interface{}{"is_default": false}).Error
 		if err != nil {
-			m.logger.Error("CreateGroup", zap.Error(err))
+			m.logger.Errorf("CreateGroup", zap.Error(err))
 			return
 		}
 	}
 
 	err = sess.Create(group).Error
 	if err != nil {
-		m.logger.Error("CreateGroup", zap.Error(err))
+		m.logger.Errorf("CreateGroup", zap.Error(err))
 		return
 	}
 	return
@@ -67,7 +67,7 @@ func (m *DBModel) UpdateGroup(group *Group, updateFields ...string) (err error) 
 	if group.IsDefault {
 		err = sess.Model(&Group{}).Where("is_default > ? and id != ?", 0, group.Id).Updates(map[string]interface{}{"is_default": false}).Error
 		if err != nil {
-			m.logger.Error("UpdateGroup", zap.Error(err))
+			m.logger.Errorf("UpdateGroup", zap.Error(err))
 			return
 		}
 	} else {
@@ -88,7 +88,7 @@ func (m *DBModel) UpdateGroup(group *Group, updateFields ...string) (err error) 
 
 	err = sess.Where("id = ?", group.Id).Updates(group).Error
 	if err != nil {
-		m.logger.Error("UpdateGroup", zap.Error(err))
+		m.logger.Errorf("UpdateGroup", zap.Error(err))
 	}
 	return
 }
@@ -102,7 +102,7 @@ func (m *DBModel) GetGroupByTitle(title string) (group Group, err error) {
 func (m *DBModel) GetGroupList(opt *OptionGetList) (groupList []Group, total int64, err error) {
 	db, total, err := m.queryCond(TableGroup, &Group{}, opt)
 	if err != nil {
-		m.logger.Error("err:", zap.Error(err))
+		m.logger.Errorf("err:", zap.Error(err))
 		return nil, total, err
 	}
 
@@ -110,7 +110,7 @@ func (m *DBModel) GetGroupList(opt *OptionGetList) (groupList []Group, total int
 
 	err = db.Find(&groupList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetGroupList", zap.Error(err))
+		m.logger.Errorf("GetGroupList", zap.Error(err))
 	}
 	return
 }
@@ -132,7 +132,7 @@ func (m *DBModel) DeleteGroup(ids []int64) error {
 func (m *DBModel) GetDefaultUserGroup() (group Group, err error) {
 	err = m.db.Where("is_default = ?", true).First(&group).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetDefaultUserGroup", zap.Error(err))
+		m.logger.Errorf("GetDefaultUserGroup", zap.Error(err))
 	}
 	return
 }

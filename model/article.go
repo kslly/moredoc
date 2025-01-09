@@ -104,7 +104,7 @@ func (m *DBModel) initArticle() (err error) {
 		}
 		err = m.CreateArticle(&article)
 		if err != nil {
-			m.logger.Error("initArticle", zap.Error(err), zap.Any("article", article))
+			m.logger.Errorf("initArticle", zap.Error(err), zap.Any("article", article))
 			return
 		}
 	}
@@ -117,11 +117,11 @@ func (m *DBModel) initArticle() (err error) {
 		},
 	).RowsAffected
 	if rowsAffected > 0 {
-		m.logger.Info("initArticle", zap.Int64("rowsAffected", rowsAffected))
+		m.logger.Infof("initArticle", zap.Int64("rowsAffected", rowsAffected))
 		// 更新作者文章数
 		err = m.db.Model(&User{}).Where("id = 1").Update("article_count", gorm.Expr("article_count + ?", rowsAffected)).Error
 		if err != nil {
-			m.logger.Error("initArticle", zap.Error(err))
+			m.logger.Errorf("initArticle", zap.Error(err))
 			return
 		}
 	}
@@ -143,14 +143,14 @@ func (m *DBModel) CreateArticle(article *Article) (err error) {
 
 	err = tx.Create(article).Error
 	if err != nil {
-		m.logger.Error("CreateArticle", zap.Error(err))
+		m.logger.Errorf("CreateArticle", zap.Error(err))
 		return
 	}
 
 	if len(article.CategoryId) > 0 {
 		err = tx.Model(&Category{}).Where("id in ?", article.CategoryId).Update("doc_count", gorm.Expr("doc_count + 1")).Error
 		if err != nil {
-			m.logger.Error("CreateArticle", zap.Error(err))
+			m.logger.Errorf("CreateArticle", zap.Error(err))
 			return
 		}
 
@@ -173,7 +173,7 @@ func (m *DBModel) CreateArticle(article *Article) (err error) {
 
 		err = tx.Create(&articleCategories).Error
 		if err != nil {
-			m.logger.Error("CreateArticle", zap.Error(err))
+			m.logger.Errorf("CreateArticle", zap.Error(err))
 			return
 		}
 	}
@@ -181,7 +181,7 @@ func (m *DBModel) CreateArticle(article *Article) (err error) {
 	// 作者文章数+1
 	err = tx.Model(&User{}).Where("id = ?", article.UserId).Update("article_count", gorm.Expr("article_count + 1")).Error
 	if err != nil {
-		m.logger.Error("CreateArticle", zap.Error(err))
+		m.logger.Errorf("CreateArticle", zap.Error(err))
 		return
 	}
 
@@ -213,13 +213,13 @@ func (m *DBModel) UpdateArticle(article *Article, updateFields ...string) (err e
 	if len(existCategoryIds) > 0 {
 		err = tx.Model(&Category{}).Where("id in ?", existCategoryIds).Update("doc_count", gorm.Expr("doc_count - 1")).Error
 		if err != nil {
-			m.logger.Error("UpdateArticle", zap.Error(err))
+			m.logger.Errorf("UpdateArticle", zap.Error(err))
 			return
 		}
 
 		err = tx.Where("article_id = ?", article.Id).Delete(&ArticleCategory{}).Error
 		if err != nil {
-			m.logger.Error("UpdateArticle", zap.Error(err))
+			m.logger.Errorf("UpdateArticle", zap.Error(err))
 			return
 		}
 	}
@@ -227,7 +227,7 @@ func (m *DBModel) UpdateArticle(article *Article, updateFields ...string) (err e
 	if len(article.CategoryId) > 0 {
 		err = tx.Model(&Category{}).Where("id in ?", article.CategoryId).Update("doc_count", gorm.Expr("doc_count + 1")).Error
 		if err != nil {
-			m.logger.Error("UpdateArticle", zap.Error(err))
+			m.logger.Errorf("UpdateArticle", zap.Error(err))
 			return
 		}
 
@@ -249,7 +249,7 @@ func (m *DBModel) UpdateArticle(article *Article, updateFields ...string) (err e
 
 		err = tx.Create(&articleCategories).Error
 		if err != nil {
-			m.logger.Error("UpdateArticle", zap.Error(err))
+			m.logger.Errorf("UpdateArticle", zap.Error(err))
 			return
 		}
 	}
@@ -261,7 +261,7 @@ func (m *DBModel) UpdateArticle(article *Article, updateFields ...string) (err e
 	ignoreFields := []string{"identifier", "view_count", "favorite_count", "comment_count", "user_id"}
 	err = tx.Model(article).Select(updateFields).Where("id = ?", article.Id).Omit(ignoreFields...).Updates(article).Error
 	if err != nil {
-		m.logger.Error("UpdateArticle", zap.Error(err))
+		m.logger.Errorf("UpdateArticle", zap.Error(err))
 		return
 	}
 
@@ -286,7 +286,7 @@ func (m *DBModel) GetArticle(id interface{}, fields ...string) (article Article,
 
 	err = db.Where("id = ?", id).First(&article).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetArticle", zap.Error(err))
+		m.logger.Errorf("GetArticle", zap.Error(err))
 		return
 	}
 	cates, _ := m.GetArticleCategories(article.Id)
@@ -310,7 +310,7 @@ func (m *DBModel) GetArticleByIdentifier(identifier string, fields ...string) (a
 
 	err = db.First(&article).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetArticleByIdentifier", zap.Error(err))
+		m.logger.Errorf("GetArticleByIdentifier", zap.Error(err))
 		return
 	}
 
@@ -358,7 +358,7 @@ func (m *DBModel) GetArticleList(opt *OptionGetArticleList) (articleList []Artic
 	if opt.WithCount {
 		err = db.Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetArticleList", zap.Error(err))
+			m.logger.Errorf("GetArticleList", zap.Error(err))
 			return
 		}
 	}
@@ -380,7 +380,7 @@ func (m *DBModel) GetArticleList(opt *OptionGetArticleList) (articleList []Artic
 
 	err = db.Find(&articleList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetArticleList", zap.Error(err))
+		m.logger.Errorf("GetArticleList", zap.Error(err))
 		return
 	}
 
@@ -434,7 +434,7 @@ func (m *DBModel) DeleteArticle(ids []int64, deepDelete ...bool) (err error) {
 		// 软删除：删除文章、文章关联分类数量-1
 		err = tx.Where("id in (?)", ids).Delete(&Article{}).Error
 		if err != nil {
-			m.logger.Error("DeleteArticle", zap.Error(err))
+			m.logger.Errorf("DeleteArticle", zap.Error(err))
 			return
 		}
 
@@ -452,7 +452,7 @@ func (m *DBModel) DeleteArticle(ids []int64, deepDelete ...bool) (err error) {
 		for _, cateIds := range articleIdMapCategories {
 			err = tx.Model(&Category{}).Where("id in (?)", cateIds).Update("doc_count", gorm.Expr("doc_count - 1")).Error
 			if err != nil {
-				m.logger.Error("DeleteArticle", zap.Error(err))
+				m.logger.Errorf("DeleteArticle", zap.Error(err))
 				return
 			}
 		}
@@ -461,7 +461,7 @@ func (m *DBModel) DeleteArticle(ids []int64, deepDelete ...bool) (err error) {
 		for _, article := range articles {
 			err = tx.Model(&User{}).Where("id = ?", article.UserId).Update("article_count", gorm.Expr("article_count - 1")).Error
 			if err != nil {
-				m.logger.Error("DeleteArticle", zap.Error(err))
+				m.logger.Errorf("DeleteArticle", zap.Error(err))
 				return
 			}
 		}
@@ -471,21 +471,21 @@ func (m *DBModel) DeleteArticle(ids []int64, deepDelete ...bool) (err error) {
 	// 文章删除
 	err = tx.Unscoped().Where("id in (?)", ids).Delete(&Article{}).Error
 	if err != nil {
-		m.logger.Error("DeleteArticle", zap.Error(err))
+		m.logger.Errorf("DeleteArticle", zap.Error(err))
 		return
 	}
 
 	// 文章分类关联删除
 	err = tx.Where("article_id in (?)", ids).Delete(&ArticleCategory{}).Error
 	if err != nil {
-		m.logger.Error("DeleteArticle", zap.Error(err))
+		m.logger.Errorf("DeleteArticle", zap.Error(err))
 		return
 	}
 
 	// 附件标记删除
 	err = tx.Where("type = ? and type_id in (?)", AttachmentTypeArticle, ids).Delete(&Attachment{}).Error
 	if err != nil {
-		m.logger.Error("DeleteArticle", zap.Error(err))
+		m.logger.Errorf("DeleteArticle", zap.Error(err))
 		return
 	}
 	return
@@ -508,7 +508,7 @@ func (m *DBModel) SetArticlesCategory(articleId, categoryId []int64) (err error)
 		for _, cate := range articleCates {
 			err = tx.Model(&Category{}).Where("id = ?", cate.CategoryId).Update("doc_count", gorm.Expr("doc_count - ?", 1)).Error
 			if err != nil {
-				m.logger.Error("SetArticlesCategory", zap.Error(err))
+				m.logger.Errorf("SetArticlesCategory", zap.Error(err))
 				return
 			}
 		}
@@ -516,7 +516,7 @@ func (m *DBModel) SetArticlesCategory(articleId, categoryId []int64) (err error)
 		// 2. 删除旧的分类
 		err = tx.Model(&ArticleCategory{}).Where("article_id = ?", id).Delete(&DocumentCategory{}).Error
 		if err != nil {
-			m.logger.Error("SetArticlesCategory", zap.Error(err))
+			m.logger.Errorf("SetArticlesCategory", zap.Error(err))
 			return
 		}
 
@@ -530,14 +530,14 @@ func (m *DBModel) SetArticlesCategory(articleId, categoryId []int64) (err error)
 		}
 		err = tx.Create(&articleCates).Error
 		if err != nil {
-			m.logger.Error("SetArticlesCategory", zap.Error(err))
+			m.logger.Errorf("SetArticlesCategory", zap.Error(err))
 			return
 		}
 
 		// 4. 更新文档分类统计
 		err = tx.Model(&Category{}).Where("id in (?)", categoryId).Update("doc_count", gorm.Expr("doc_count + ?", 1)).Error
 		if err != nil {
-			m.logger.Error("SetArticlesCategory", zap.Error(err))
+			m.logger.Errorf("SetArticlesCategory", zap.Error(err))
 			return
 		}
 	}
@@ -548,7 +548,7 @@ func (m *DBModel) SetArticlesCategory(articleId, categoryId []int64) (err error)
 func (m *DBModel) checkArticleFile(article *Article) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(article.Content))
 	if err != nil {
-		m.logger.Error("checkArticleFile", zap.Error(err))
+		m.logger.Errorf("checkArticleFile", zap.Error(err))
 		return
 	}
 
@@ -573,7 +573,7 @@ func (m *DBModel) checkArticleFile(article *Article) {
 	if len(hashes) > 0 { // 更新内容ID
 		err = m.db.Model(&Attachment{}).Where("hash in (?) and type = ? and type_id = 0", hashes, AttachmentTypeArticle).Update("type_id", article.Id).Error
 		if err != nil {
-			m.logger.Error("checkArticleFile", zap.Error(err))
+			m.logger.Errorf("checkArticleFile", zap.Error(err))
 		}
 	}
 }
@@ -595,7 +595,7 @@ func (m *DBModel) RestoreArticle(ids []int64) (err error) {
 
 	err = tx.Model(&Article{}).Unscoped().Where("id in (?)", ids).Update("deleted_at", nil).Error
 	if err != nil {
-		m.logger.Error("RestoreArticle", zap.Error(err))
+		m.logger.Errorf("RestoreArticle", zap.Error(err))
 		return
 	}
 
@@ -615,7 +615,7 @@ func (m *DBModel) RestoreArticle(ids []int64) (err error) {
 	for _, cateIds := range articleIdMapCategories {
 		err = tx.Model(&Category{}).Where("id in (?)", cateIds).Update("doc_count", gorm.Expr("doc_count + 1")).Error
 		if err != nil {
-			m.logger.Error("RestoreArticle", zap.Error(err))
+			m.logger.Errorf("RestoreArticle", zap.Error(err))
 			return
 		}
 	}
@@ -624,7 +624,7 @@ func (m *DBModel) RestoreArticle(ids []int64) (err error) {
 	for _, article := range articles {
 		err = tx.Model(&User{}).Where("id = ?", article.UserId).Update("article_count", gorm.Expr("article_count + 1")).Error
 		if err != nil {
-			m.logger.Error("RestoreArticle", zap.Error(err))
+			m.logger.Errorf("RestoreArticle", zap.Error(err))
 			return
 		}
 	}
@@ -651,7 +651,7 @@ func (m *DBModel) GetDefaultArticleStatus(userId int64) (status int32) {
 		"left join "+TableUserGroup+" ug on g.id=ug.group_id",
 	).Where("ug.user_id = ? and g.enable_article = ?", userId, true).Find(&group)
 
-	m.logger.Debug("GetDefaultArticleStatus", zap.Any("group", group))
+	m.logger.Debugf("GetDefaultArticleStatus", zap.Any("group", group))
 	if group.Id > 0 && !group.EnableArticleApproval {
 		status = ArticleStatusPass
 	}

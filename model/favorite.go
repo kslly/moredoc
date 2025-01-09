@@ -39,21 +39,21 @@ func (m *DBModel) CreateDocumentFavorite(favorite *Favorite) (err error) {
 	// 添加收藏
 	err = tx.Create(favorite).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
 	// 文档收藏数量增加
 	err = tx.Model(&Document{}).Where("id = ?", favorite.DocumentId).Update("favorite_count", gorm.Expr("favorite_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
 	// 用户收藏数量增加
 	err = tx.Model(&User{}).Where("id = ?", favorite.UserId).Update("favorite_count", gorm.Expr("favorite_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
@@ -68,7 +68,7 @@ func (m *DBModel) CreateDocumentFavorite(favorite *Favorite) (err error) {
 		Content: fmt.Sprintf(`您收藏了文档《<a href="/document/%s">%s</a>》`, doc.UUID, doc.Title),
 	}).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
@@ -83,7 +83,7 @@ func (m *DBModel) CreateDocumentFavorite(favorite *Favorite) (err error) {
 		// 文档分享者积分增加
 		err = tx.Model(&User{}).Where("id = ?", doc.UserId).Update("credit_count", gorm.Expr("credit_count + ?", cfgScore.DocumentCollected)).Error
 		if err != nil {
-			m.logger.Error("CreateFavorite", zap.Error(err))
+			m.logger.Errorf("CreateFavorite", zap.Error(err))
 			return
 		}
 
@@ -93,7 +93,7 @@ func (m *DBModel) CreateDocumentFavorite(favorite *Favorite) (err error) {
 			Content: fmt.Sprintf(`您分享的文档《<a href="/document/%s">%s</a>》被收藏，获得 %d %s奖励`, doc.UUID, doc.Title, cfgScore.DocumentCollected, cfgScore.CreditName),
 		}).Error
 		if err != nil {
-			m.logger.Error("CreateFavorite", zap.Error(err))
+			m.logger.Errorf("CreateFavorite", zap.Error(err))
 			return
 		}
 	}
@@ -114,21 +114,21 @@ func (m *DBModel) CreateArticleFavorite(favorite *Favorite) (err error) {
 	// 添加收藏
 	err = tx.Create(favorite).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
 	// 文章收藏数量增加
 	err = tx.Model(&Article{}).Where("id = ?", favorite.DocumentId).Update("favorite_count", gorm.Expr("favorite_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
 	// 用户收藏数量增加
 	err = tx.Model(&User{}).Where("id = ?", favorite.UserId).Update("favorite_count", gorm.Expr("favorite_count + ?", 1)).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 		return
 	}
 
@@ -144,7 +144,7 @@ func (m *DBModel) CreateArticleFavorite(favorite *Favorite) (err error) {
 		Content: fmt.Sprintf(`您收藏了文章《<a href="/article/%s">%s</a>》`, article.Identifier, article.Title),
 	}).Error
 	if err != nil {
-		m.logger.Error("CreateFavorite", zap.Error(err))
+		m.logger.Errorf("CreateFavorite", zap.Error(err))
 	}
 	return
 }
@@ -172,7 +172,7 @@ func (m *DBModel) GetDocumentFavoriteList(opt *OptionGetList, documentStatus ...
 	if opt.WithCount {
 		err = db.Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetFavoriteList", zap.Error(err))
+			m.logger.Errorf("GetFavoriteList", zap.Error(err))
 			return
 		}
 	}
@@ -186,7 +186,7 @@ func (m *DBModel) GetDocumentFavoriteList(opt *OptionGetList, documentStatus ...
 	// 注意：size字段要用size_ 才能映射到pb.Favorite
 	err = db.Select("f.*, d.title, d.ext, d.score, d.pages, d.size as size_, d.uuid as document_uuid").Find(&favoriteList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetFavoriteList", zap.Error(err))
+		m.logger.Errorf("GetFavoriteList", zap.Error(err))
 	}
 	return
 }
@@ -209,7 +209,7 @@ func (m *DBModel) GetArticleFavoriteList(opt *OptionGetList, articleStatus ...in
 	if opt.WithCount {
 		err = db.Count(&total).Error
 		if err != nil {
-			m.logger.Error("GetFavoriteList", zap.Error(err))
+			m.logger.Errorf("GetFavoriteList", zap.Error(err))
 			return
 		}
 	}
@@ -223,7 +223,7 @@ func (m *DBModel) GetArticleFavoriteList(opt *OptionGetList, articleStatus ...in
 	// 注意：size字段要用size_ 才能映射到pb.Favorite
 	err = db.Select("f.*, a.title, a.identifier as document_uuid").Find(&favoriteList).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
-		m.logger.Error("GetFavoriteList", zap.Error(err))
+		m.logger.Errorf("GetFavoriteList", zap.Error(err))
 	}
 	return
 }
@@ -256,7 +256,7 @@ func (m *DBModel) DeleteFavorite(userId int64, ids []int64) (err error) {
 	for _, favorite := range favorites {
 		err = tx.Delete(&favorite).Error
 		if err != nil {
-			m.logger.Error("DeleteFavorite", zap.Error(err))
+			m.logger.Errorf("DeleteFavorite", zap.Error(err))
 			return
 		}
 
@@ -264,21 +264,21 @@ func (m *DBModel) DeleteFavorite(userId int64, ids []int64) (err error) {
 			// 文章收藏数量减少
 			err = tx.Model(article).Where("id = ?", favorite.DocumentId).Update("favorite_count", gorm.Expr("favorite_count - ?", 1)).Error
 			if err != nil {
-				m.logger.Error("DeleteFavorite", zap.Error(err))
+				m.logger.Errorf("DeleteFavorite", zap.Error(err))
 				return
 			}
 		} else {
 			// 文档收藏数量减少
 			err = tx.Model(document).Where("id = ?", favorite.DocumentId).Update("favorite_count", gorm.Expr("favorite_count - ?", 1)).Error
 			if err != nil {
-				m.logger.Error("DeleteFavorite", zap.Error(err))
+				m.logger.Errorf("DeleteFavorite", zap.Error(err))
 				return
 			}
 		}
 		// 用户收藏数量减少
 		err = tx.Model(user).Where("id = ?", favorite.UserId).Update("favorite_count", gorm.Expr("favorite_count - ?", 1)).Error
 		if err != nil {
-			m.logger.Error("DeleteFavorite", zap.Error(err))
+			m.logger.Errorf("DeleteFavorite", zap.Error(err))
 			return
 		}
 	}

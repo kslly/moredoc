@@ -3,6 +3,7 @@ package service
 import (
 	"moredoc/conf"
 	"moredoc/model"
+	"moredoc/pkg/logger"
 	"moredoc/util"
 	"os"
 	"path/filepath"
@@ -12,12 +13,11 @@ import (
 	"gorm.io/gorm"
 )
 
-func FixCover(cfg *conf.Config, logger *zap.Logger) {
-	lg := logger.Named("FixCover")
-	lg.Info("start...")
+func FixCover(cfg *conf.Config, logger logger.Logger) {
+	logger.Infof("start...")
 	dbModel, err := model.NewDBModel(&cfg.Database, logger)
 	if err != nil {
-		lg.Fatal("NewDBModel", zap.Error(err))
+		logger.Fatalf("NewDBModel", zap.Error(err))
 		return
 	}
 
@@ -28,7 +28,7 @@ func FixCover(cfg *conf.Config, logger *zap.Logger) {
 		err := dbModel.DB().Where("type = ?", model.AttachmentTypeDocument).Select("hash", "path").Group("hash").
 			Offset((page - 1) * size).Limit(size).Order("id asc").Find(&attachments).Error
 		if err != nil && err != gorm.ErrRecordNotFound {
-			lg.Error("查询附件失败", zap.Error(err))
+			logger.Errorf("查询附件失败", zap.Error(err))
 			break
 		}
 		if len(attachments) == 0 {
@@ -41,9 +41,9 @@ func FixCover(cfg *conf.Config, logger *zap.Logger) {
 			os.Remove(cover)
 			util.CopyFile(coverBig, cover)
 			util.CropImage(cover, model.DocumentCoverWidth, model.DocumentCoverHeight, true)
-			lg.Info("fixed", zap.String("cover", cover))
+			logger.Infof("fixed", zap.String("cover", cover))
 		}
 		page++
 	}
-	lg.Info("done!")
+	logger.Infof("done!")
 }

@@ -58,7 +58,7 @@ func (m *DBModel) UpdateSitemap() (err error) {
 	)
 	for {
 		if err = m.db.Model(modelDocument).Select("id", "updated_at", "uuid").Limit(limit).Offset((page - 1) * limit).Order("id asc").Find(&documents).Error; err != nil && err != gorm.ErrRecordNotFound {
-			m.logger.Error("execUpdateSitemap", zap.Error(err))
+			m.logger.Errorf("execUpdateSitemap", zap.Error(err))
 			return
 		}
 		if len(documents) == 0 {
@@ -76,7 +76,7 @@ func (m *DBModel) UpdateSitemap() (err error) {
 			})
 		}
 		if err = sm.CreateSitemapContent(su, file); err != nil {
-			m.logger.Error("execUpdateSitemap", zap.Error(err))
+			m.logger.Errorf("execUpdateSitemap", zap.Error(err))
 			return
 		}
 		sitemapIndexes = append(sitemapIndexes, sitemap.SitemapIndex{
@@ -89,7 +89,7 @@ func (m *DBModel) UpdateSitemap() (err error) {
 	page = 1
 	for {
 		if err = m.db.Model(modelArticle).Select("id", "updated_at", "identifier").Limit(limit).Offset((page - 1) * limit).Order("id asc").Find(&articles).Error; err != nil && err != gorm.ErrRecordNotFound {
-			m.logger.Error("execUpdateSitemap", zap.Error(err))
+			m.logger.Errorf("execUpdateSitemap", zap.Error(err))
 			return
 		}
 		if len(articles) == 0 {
@@ -106,7 +106,7 @@ func (m *DBModel) UpdateSitemap() (err error) {
 			})
 		}
 		if err = sm.CreateSitemapContent(su, file); err != nil {
-			m.logger.Error("execUpdateSitemap", zap.Error(err))
+			m.logger.Errorf("execUpdateSitemap", zap.Error(err))
 			return
 		}
 		sitemapIndexes = append(sitemapIndexes, sitemap.SitemapIndex{
@@ -118,7 +118,7 @@ func (m *DBModel) UpdateSitemap() (err error) {
 
 	if len(sitemapIndexes) > 0 {
 		if err = sm.CreateSitemapIndex(sitemapIndexes, "sitemap/sitemap.xml"); err != nil {
-			m.logger.Error("execUpdateSitemap", zap.Error(err))
+			m.logger.Errorf("execUpdateSitemap", zap.Error(err))
 			return
 		}
 	}
@@ -169,9 +169,9 @@ func (m *DBModel) InitSEO() {
 
 			bs, _ := os.ReadFile(path)
 			if doc, errDoc := goquery.NewDocumentFromReader(bytes.NewReader(bs)); errDoc != nil {
-				m.logger.Error("initSEO", zap.Error(errDoc), zap.String("file", path))
+				m.logger.Errorf("initSEO", zap.Error(errDoc), zap.String("file", path))
 			} else {
-				m.logger.Debug("initSEO", zap.String("file", path), zap.String("title", defaultTitle+cfg.Sitename))
+				m.logger.Debugf("initSEO", zap.String("file", path), zap.String("title", defaultTitle+cfg.Sitename))
 				doc.Find("title").SetText(defaultTitle + cfg.Sitename)
 				doc.Find("meta[name='keywords']").SetAttr("content", cfg.Keywords)
 				doc.Find("meta[name='description']").SetAttr("content", cfg.Description)
@@ -191,15 +191,15 @@ func (m *DBModel) cronUpdateSitemap() {
 	lastUpdated := time.Now().Format(layout)
 	for {
 		hour, _ := strconv.Atoi(os.Getenv("MOREDOC_UPDATE_SITEMAP_HOUR")) // 默认为每天凌晨0点更新站点地图
-		m.logger.Debug("cronUpdateSitemap", zap.Int("hour", hour), zap.String("lastUpdated", lastUpdated))
+		m.logger.Debugf("cronUpdateSitemap", zap.Int("hour", hour), zap.String("lastUpdated", lastUpdated))
 		now := time.Now()
 		if now.Hour() == hour && now.Format(layout) != lastUpdated {
-			m.logger.Debug("cronUpdateSitemap，start...")
+			m.logger.Debugf("cronUpdateSitemap，start...")
 			err := m.UpdateSitemap()
 			if err != nil {
-				m.logger.Debug("cronUpdateSitemap，end...", zap.Error(err))
+				m.logger.Debugf("cronUpdateSitemap，end...", zap.Error(err))
 			}
-			m.logger.Debug("cronUpdateSitemap，end...")
+			m.logger.Debugf("cronUpdateSitemap，end...")
 			lastUpdated = now.Format(layout)
 		}
 		time.Sleep(1 * time.Minute)
@@ -215,7 +215,7 @@ func (m *DBModel) cronCleanInvalidAttachment() {
 	sleepDuration := 1 * time.Minute
 	for {
 		time.Sleep(1 * time.Second)
-		m.logger.Debug("cronCleanInvalidAttachment，start...")
+		m.logger.Debugf("cronCleanInvalidAttachment，start...")
 		var (
 			deletedAttachemnts, attachemnts []Attachment
 			hashes                          []string
@@ -231,7 +231,7 @@ func (m *DBModel) cronCleanInvalidAttachment() {
 		// 1. 找出已被标记删除的附件
 		m.db.Unscoped().Where("deleted_at IS NOT NULL").Where("deleted_at < ?", time.Now().Add(-time.Duration(retentionMinute)*time.Minute)).Limit(100).Find(&deletedAttachemnts)
 		if len(deletedAttachemnts) == 0 {
-			m.logger.Debug("cronCleanInvalidAttachment，end...")
+			m.logger.Debugf("cronCleanInvalidAttachment，end...")
 			time.Sleep(sleepDuration)
 			continue
 		}
@@ -250,32 +250,32 @@ func (m *DBModel) cronCleanInvalidAttachment() {
 		// 3. 删除已被标记删除的附件
 		err := m.db.Unscoped().Where("id IN (?)", ids).Delete(&Attachment{}).Error
 		if err != nil {
-			m.logger.Error("cronCleanInvalidAttachment", zap.Error(err))
-			m.logger.Debug("cronCleanInvalidAttachment，end...")
+			m.logger.Errorf("cronCleanInvalidAttachment", zap.Error(err))
+			m.logger.Debugf("cronCleanInvalidAttachment，end...")
 			continue
 		}
-		m.logger.Debug("cronCleanInvalidAttachment", zap.Any("ids", ids), zap.Any("Attachemnts", deletedAttachemnts))
+		m.logger.Debugf("cronCleanInvalidAttachment", zap.Any("ids", ids), zap.Any("Attachemnts", deletedAttachemnts))
 		for _, attachemnt := range deletedAttachemnts {
 			_, ok := hashMap[attachemnt.Hash]
 			if ok {
 				continue
 			}
 			// 删除附件文件
-			m.logger.Debug("cronCleanInvalidAttachment", zap.String("path", attachemnt.Path), zap.Any("attachemnt", attachemnt))
+			m.logger.Debugf("cronCleanInvalidAttachment", zap.String("path", attachemnt.Path), zap.Any("attachemnt", attachemnt))
 			file := strings.TrimLeft(attachemnt.Path, "./")
-			m.logger.Debug("cronCleanInvalidAttachment", zap.String("file", file))
+			m.logger.Debugf("cronCleanInvalidAttachment", zap.String("file", file))
 			if err := os.Remove(file); err != nil {
-				m.logger.Error("cronCleanInvalidAttachment", zap.Error(err), zap.String("file", file))
+				m.logger.Errorf("cronCleanInvalidAttachment", zap.Error(err), zap.String("file", file))
 			}
 			if attachemnt.Type == AttachmentTypeDocument { // 删除文档的衍生文件
 				folder := strings.TrimSuffix(file, filepath.Ext(file))
-				m.logger.Debug("cronCleanInvalidAttachment", zap.String("folder", folder))
+				m.logger.Debugf("cronCleanInvalidAttachment", zap.String("folder", folder))
 				if err := os.RemoveAll(folder); err != nil {
-					m.logger.Error("cronCleanInvalidAttachment", zap.Error(err), zap.String("folder", folder))
+					m.logger.Errorf("cronCleanInvalidAttachment", zap.Error(err), zap.String("folder", folder))
 				}
 			}
 		}
-		m.logger.Debug("cronCleanInvalidAttachment，end...")
+		m.logger.Debugf("cronCleanInvalidAttachment，end...")
 	}
 }
 
@@ -312,17 +312,17 @@ func (m *DBModel) cronMarkAttachmentDeleted() {
 		if len(hashes) > 0 {
 			err := m.db.Where("`hash` NOT IN (?) and `type` in (?)", hashes, []int{AttachmentTypeConfig, AttachmentTypeBanner}).Delete(&Attachment{}).Error
 			if err != nil {
-				m.logger.Error("cronMarkAttachmentDeleted", zap.Error(err))
+				m.logger.Errorf("cronMarkAttachmentDeleted", zap.Error(err))
 			}
 		}
 
 		// 非配置类和轮播图类附件，如果type_id为0，则表示未被使用，超过24小时则标记删除
-		m.logger.Debug("cronMarkAttachmentDeleted start...")
+		m.logger.Debugf("cronMarkAttachmentDeleted start...")
 		err := m.db.Where("`type` not in (?)  and type_id = ?", []int{AttachmentTypeConfig, AttachmentTypeBanner}, 0).Where("created_at < ?", time.Now().Add(-time.Duration(24)*time.Hour)).Delete(&Attachment{}).Error
 		if err != nil {
-			m.logger.Error("cronMarkAttachmentDeleted", zap.Error(err))
+			m.logger.Errorf("cronMarkAttachmentDeleted", zap.Error(err))
 		}
-		m.logger.Debug("cronMarkAttachmentDeleted end...")
+		m.logger.Debugf("cronMarkAttachmentDeleted end...")
 	}
 }
 
@@ -337,12 +337,12 @@ func (m *DBModel) loopCovertDocument() {
 	m.db.Model(&Document{}).Where("status = ?", DocumentStatusConverting).Update("status", DocumentStatusPending)
 	for {
 		now := time.Now()
-		m.logger.Debug("loopCovertDocument，start...")
+		m.logger.Debugf("loopCovertDocument，start...")
 		err := m.ConvertDocument()
 		if err != nil && err != gorm.ErrRecordNotFound {
-			m.logger.Error("loopCovertDocument", zap.Error(err))
+			m.logger.Errorf("loopCovertDocument", zap.Error(err))
 		}
-		m.logger.Debug("loopCovertDocument，end...", zap.String("cost", time.Since(now).String()))
+		m.logger.Debugf("loopCovertDocument，end...", zap.String("cost", time.Since(now).String()))
 		if err == gorm.ErrRecordNotFound {
 			time.Sleep(sleep)
 		}
@@ -360,27 +360,27 @@ func (m *DBModel) ReconvertDocoument(documentId int64, ext string) {
 
 	doc, err := m.GetDocument(documentId)
 	if err != nil {
-		m.logger.Error("ReconvertDocoument", zap.Error(err))
+		m.logger.Errorf("ReconvertDocoument", zap.Error(err))
 		return
 	}
 	if doc.Status != DocumentStatusConverted {
-		m.logger.Error("ReconvertDocoument", zap.Error(errors.New("文档不是已转换的文档，不能重转")))
+		m.logger.Errorf("ReconvertDocoument", zap.Error(errors.New("文档不是已转换的文档，不能重转")))
 		return
 	}
 	m.reconvertDocument(&doc, ext)
 }
 
 func (m *DBModel) reconvertDocument(doc *Document, ext string) {
-	m.logger.Debug("reconvertDocument", zap.Any("doc", doc), zap.String("ext", ext))
+	m.logger.Debugf("reconvertDocument", zap.Any("doc", doc), zap.String("ext", ext))
 	if doc.PreviewExt == ext {
-		m.logger.Info("reconvertDocument", zap.String("msg", "文档预览文件格式与指定格式一致，无需重转"), zap.String("document", doc.Title+doc.Ext))
+		m.logger.Infof("reconvertDocument", zap.String("msg", "文档预览文件格式与指定格式一致，无需重转"), zap.String("document", doc.Title+doc.Ext))
 		return
 	}
 
 	// 1. 下载文档预览文件
 	attachment := m.GetAttachmentByTypeAndTypeId(AttachmentTypeDocument, doc.Id, "id", "hash")
 	if attachment.Id == 0 {
-		m.logger.Error("reconvertDocument", zap.String("msg", "文档预览文件不存在"), zap.String("document", doc.Title+doc.Ext))
+		m.logger.Errorf("reconvertDocument", zap.String("msg", "文档预览文件不存在"), zap.String("document", doc.Title+doc.Ext))
 		return
 	}
 	cacheDir := filepath.Join(cacheReconvert, strconv.FormatInt(doc.Id, 10))
@@ -413,10 +413,10 @@ func (m *DBModel) reconvertDocument(doc *Document, ext string) {
 		oldSrcFiles = append(oldSrcFiles, srcFile)
 		err := util.CopyFile(srcFile, dstFile)
 		if err != nil {
-			m.logger.Error("reconvertDocument", zap.String("msg", "下载文档预览文件失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
+			m.logger.Errorf("reconvertDocument", zap.String("msg", "下载文档预览文件失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
 			return
 		}
-		m.logger.Debug("reconvertDocument", zap.Bool("isGZIP", isGZIP), zap.String("msg", "下载文档预览文件成功"), zap.String("document", doc.Title+doc.Ext), zap.String("srcFile", srcFile), zap.String("dstFile", dstFile))
+		m.logger.Debugf("reconvertDocument", zap.Bool("isGZIP", isGZIP), zap.String("msg", "下载文档预览文件成功"), zap.String("document", doc.Title+doc.Ext), zap.String("srcFile", srcFile), zap.String("dstFile", dstFile))
 		if isGZIP { // 解压缩
 			m.ungzipSVG(dstFile)
 		}
@@ -441,7 +441,7 @@ func (m *DBModel) reconvertDocument(doc *Document, ext string) {
 			err = converter.ConvertByImageMagick(dstFile, convertedTargetFile)
 		}
 		if err != nil {
-			m.logger.Error("reconvertDocument", zap.String("msg", "转换文档预览文件失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
+			m.logger.Errorf("reconvertDocument", zap.String("msg", "转换文档预览文件失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
 			return
 		}
 		convertedTargets = append(convertedTargets, convertedTargetFile)
@@ -452,7 +452,7 @@ func (m *DBModel) reconvertDocument(doc *Document, ext string) {
 		dstFile := fmt.Sprintf("documents/%s/%s/%d%s", strings.Join(strings.Split(attachment.Hash, "")[:5], "/"), attachment.Hash, i+1, ext)
 		err := util.CopyFile(srcFile, dstFile)
 		if err != nil {
-			m.logger.Error("reconvertDocument", zap.String("msg", "上传文档预览文件失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
+			m.logger.Errorf("reconvertDocument", zap.String("msg", "上传文档预览文件失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
 			return
 		}
 	}
@@ -479,7 +479,7 @@ func (m *DBModel) reconvertDocument(doc *Document, ext string) {
 		err = m.db.Model(doc).Updates(data).Error
 	}
 	if err != nil {
-		m.logger.Error("reconvertDocument", zap.String("msg", "更新文档预览文件后缀失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
+		m.logger.Errorf("reconvertDocument", zap.String("msg", "更新文档预览文件后缀失败"), zap.String("document", doc.Title+doc.Ext), zap.Error(err))
 		return
 	}
 
@@ -507,21 +507,21 @@ func (m *DBModel) reconvertAllDocument(ext string) {
 }
 
 func (m *DBModel) ungzipSVG(svg string) {
-	m.logger.Info("ungzipSVG", zap.String("svg", svg))
+	m.logger.Infof("ungzipSVG", zap.String("svg", svg))
 	bs, err := os.ReadFile(svg)
 	if err != nil {
-		m.logger.Error("ungzipSVG", zap.Error(err))
+		m.logger.Errorf("ungzipSVG", zap.Error(err))
 		return
 	}
 	gz, err := gzip.NewReader(bytes.NewReader(bs))
 	if err != nil {
-		m.logger.Error("ungzipSVG", zap.Error(err))
+		m.logger.Errorf("ungzipSVG", zap.Error(err))
 		return
 	}
 	defer gz.Close()
 	fp, err := os.Create(svg)
 	if err != nil {
-		m.logger.Error("ungzipSVG", zap.Error(err))
+		m.logger.Errorf("ungzipSVG", zap.Error(err))
 		return
 	}
 	defer fp.Close()
@@ -573,7 +573,7 @@ func (m *DBModel) SSRMidleware(c *gin.Context) {
 		return
 	}
 
-	m.logger.Debug("SSRMidleware", zap.String("request host", c.Request.Host), zap.String("addr", addr), zap.Any("header", c.Request.Header))
+	m.logger.Debugf("SSRMidleware", zap.String("request host", c.Request.Host), zap.String("addr", addr), zap.Any("header", c.Request.Header))
 
 	addr = addr + c.Request.RequestURI
 	userAgents := strings.Split(cfg.Useragent, "\n")
@@ -589,7 +589,7 @@ func (m *DBModel) SSRMidleware(c *gin.Context) {
 		}
 
 		if cache, err := m._readSSRCacheFile(c.Request.RequestURI); err == nil {
-			m.logger.Debug("SSRMidleware", zap.Int("read from cache", len(cache)))
+			m.logger.Debugf("SSRMidleware", zap.Int("read from cache", len(cache)))
 			c.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 			c.Writer.WriteHeader(http.StatusOK)
 			c.Writer.Write(cache)
@@ -603,7 +603,7 @@ func (m *DBModel) SSRMidleware(c *gin.Context) {
 		req.SetHeader("User-Agent", reqUA)
 		resp, err := req.Get(addr)
 		if err != nil {
-			m.logger.Error("SSRMidleware", zap.Error(err))
+			m.logger.Errorf("SSRMidleware", zap.Error(err))
 			c.Next()
 			return
 		}
@@ -621,7 +621,7 @@ func (m *DBModel) SSRMidleware(c *gin.Context) {
 			c.Writer.Write(body)
 			c.Abort()
 		} else {
-			m.logger.Error("SSRMidleware", zap.String("msg", "ssr请求失败"), zap.Int("status", resp.StatusCode()))
+			m.logger.Errorf("SSRMidleware", zap.String("msg", "ssr请求失败"), zap.Int("status", resp.StatusCode()))
 			c.Next()
 		}
 		return
@@ -636,21 +636,21 @@ func (m *DBModel) saveSSRCache(reqURL string, body []byte) {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err := gz.Write(body); err != nil {
-		m.logger.Error("saveSSRCache", zap.Error(err))
+		m.logger.Errorf("saveSSRCache", zap.Error(err))
 		return
 	}
 	if err := gz.Close(); err != nil {
-		m.logger.Error("saveSSRCache", zap.Error(err))
+		m.logger.Errorf("saveSSRCache", zap.Error(err))
 		return
 	}
 
 	// 保存到文件
 	if err := os.WriteFile(cacheFile, buf.Bytes(), os.ModePerm); err != nil {
-		m.logger.Error("saveSSRCache", zap.Error(err))
+		m.logger.Errorf("saveSSRCache", zap.Error(err))
 		return
 	}
 
-	m.logger.Debug("saveSSRCache", zap.String("cacheFile", cacheFile))
+	m.logger.Debugf("saveSSRCache", zap.String("cacheFile", cacheFile))
 }
 
 func (m *DBModel) _genSSRCacheFile(reqURL string) (cacheFile string) {
@@ -667,27 +667,27 @@ func (m *DBModel) _genSSRCacheFile(reqURL string) (cacheFile string) {
 func (m *DBModel) _readSSRCacheFile(reqURL string) (body []byte, err error) {
 	cacheFile := m._genSSRCacheFile(reqURL)
 	if _, err = os.Stat(cacheFile); err != nil {
-		m.logger.Debug("_readSSRCacheFile", zap.Error(err))
+		m.logger.Debugf("_readSSRCacheFile", zap.Error(err))
 		return
 	}
 
 	// 从gzip文件中读取
 	bs, err := os.ReadFile(cacheFile)
 	if err != nil {
-		m.logger.Error("_readSSRCacheFile", zap.Error(err))
+		m.logger.Errorf("_readSSRCacheFile", zap.Error(err))
 		return
 	}
 
 	gz, err := gzip.NewReader(bytes.NewReader(bs))
 	if err != nil {
-		m.logger.Error("_readSSRCacheFile", zap.Error(err))
+		m.logger.Errorf("_readSSRCacheFile", zap.Error(err))
 		return
 	}
 
 	defer gz.Close()
 	body, err = io.ReadAll(gz)
 	if err != nil {
-		m.logger.Error("_readSSRCacheFile", zap.Error(err))
+		m.logger.Errorf("_readSSRCacheFile", zap.Error(err))
 		return
 	}
 
@@ -712,7 +712,7 @@ func (m *DBModel) checkAndStartSSR() {
 				if d.IsDir() {
 					return nil
 				}
-				m.logger.Debug("clear ssr cache file", zap.String("path", path))
+				m.logger.Debugf("clear ssr cache file", zap.String("path", path))
 				info, err := d.Info()
 				if err != nil {
 					return err
@@ -758,10 +758,10 @@ func (m *DBModel) checkAndStartSSR() {
 
 	for {
 		cfg := m.GetConfigOfSSRByCache()
-		m.logger.Debug("checkAndStartSSR", zap.Any("config", cfg))
+		m.logger.Debugf("checkAndStartSSR", zap.Any("config", cfg))
 		// 存在进程，但是配置关闭了SSR，则关闭进程
 		if gPid > 0 && (!cfg.Enable || (cfg.Enable && strings.TrimSpace(cfg.Folder) == "")) {
-			m.logger.Info("checkAndStartSSR", zap.Int("pid", gPid), zap.String("msg", "关闭SSR进程"), zap.Any("config", cfg))
+			m.logger.Infof("checkAndStartSSR", zap.Int("pid", gPid), zap.String("msg", "关闭SSR进程"), zap.Any("config", cfg))
 			command.CloseChildProccess(gPid)
 			gPid = 0
 		}
@@ -782,11 +782,11 @@ func (m *DBModel) checkAndStartSSR() {
 						Stderr:  os.Stderr,
 						Callback: func(pid int) {
 							gPid = pid
-							m.logger.Debug("checkAndStartSSR", zap.Int("pid", pid))
+							m.logger.Debugf("checkAndStartSSR", zap.Int("pid", pid))
 						},
 					})
 					if err != nil {
-						m.logger.Error("checkAndStartSSR", zap.Error(err))
+						m.logger.Errorf("checkAndStartSSR", zap.Error(err))
 						command.CloseChildProccess(gPid)
 						gPid = 0
 					}
